@@ -22,12 +22,16 @@ plot_survival_weights <- function(explainer, times, p=0, q=0){
     weights_to_plot_df <- rbind(weights_to_plot_df, weights_df)
   }
 
-  ggplot(weights_to_plot_df, aes(x = time, y = weight, group = params, color = params)) +
-    geom_line(linewidth=0.8) +
-    xlab("Time") +
-    ylab("Weight") +
-    theme_minimal() +
-    scale_color_brewer(type = "qual", palette = "Set1") +
-    guides(color = guide_legend(title = "Parameters", nrow=2)) +
-    theme(legend.position = "bottom")
+  with(weights_to_plot_df,
+       {
+         ggplot(weights_to_plot_df, aes(x = time, y = weight, group = params, color = params)) +
+           geom_line(linewidth=0.8) +
+           xlab("Time") +
+           ylab("Weight") +
+           theme_minimal() +
+           scale_color_brewer(type = "qual", palette = "Set1") +
+           guides(color = guide_legend(title = "Parameters", nrow=2)) +
+           theme(legend.position = "bottom")
+       }
+  )
 }

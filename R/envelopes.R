@@ -17,6 +17,7 @@ get_cluster_envelope <- function(preds, clusters, cluster_id, q = 0.05){
   return(res)
 }
 
+
 #' @export
 translate_target_envelope <- function(target_envelope){
   stopifnot("target_envelope should be of class 'target_envelope'" = class(target_envelope) == "target_envelope")
@@ -61,20 +62,27 @@ plot_cluster_envelopes <- function(preds, clusters, times, q = 0.05, preds_to_pl
     preds_plot <- prepare_predictions_to_plot(preds_to_plot, times)
   }
 
-  p <- ggplot(envelopes_df, aes(x = time, group = cluster, color = factor(cluster), fill = factor(cluster))) +
-    geom_ribbon(aes(ymin = lower_bound, ymax = upper_bound), alpha=alpha, colour=NA) +
-    # geom_line(aes(y = lower_bound)) +
-    # geom_line(aes(y = upper_bound)) +
-    xlab("Time") +
-    ylab(y_title) +
-    theme_minimal() +
-    scale_fill_brewer(type = "qual", palette = "Set2", name = "Cluster") +
-    scale_color_brewer(type = "qual", palette = "Set2", name = "Cluster")
+  with(envelopes_df,
+       {
+         p <- ggplot(envelopes_df, aes(x = time, group = cluster, color = factor(cluster), fill = factor(cluster))) +
+           geom_ribbon(aes(ymin = lower_bound, ymax = upper_bound), alpha=alpha, colour=NA) +
+           # geom_line(aes(y = lower_bound)) +
+           # geom_line(aes(y = upper_bound)) +
+           xlab("Time") +
+           ylab(y_title) +
+           theme_minimal() +
+           scale_fill_brewer(type = "qual", palette = "Set2", name = "Cluster") +
+           scale_color_brewer(type = "qual", palette = "Set2", name = "Cluster")
+       }
+  )
 
   if (!is.null(preds_to_plot)) {
-    p <- p + geom_line(data = preds_plot, aes(x = time, y = fun, group = id),
-                       alpha=1, linewidth=0.5, inherit.aes = FALSE)
+    with(preds_plot,
+         {
+           p <- p + geom_line(data = preds_plot, aes(x = time, y = fun, group = id),
+                              alpha=1, linewidth=0.5, inherit.aes = FALSE)
+         }
+    )
   }
   p
-
 }

@@ -1,3 +1,11 @@
+#' @title Plot time-dependent predictions
+#'
+#' @param preds a matrix of predictions
+#' @param times a vector of time points at which the predictions were made
+#' @param preds_labels a vector of labels for the predictions
+#' @param alpha transparency of the lines
+#' @param linewidth width of the lines
+#'
 #' @import ggplot2
 #' @export
 plot_predictions <- function(preds, times, preds_labels=NULL, alpha=0.3, linewidth=0.3) {
@@ -14,18 +22,27 @@ plot_predictions <- function(preds, times, preds_labels=NULL, alpha=0.3, linewid
 
   preds_plot <- prepare_predictions_to_plot(preds, times, preds_labels, alpha, linewidth)
 
-  ggplot(preds_plot, aes(x = time, y = fun, group = id, color = cluster)) +
-    geom_line(aes(alpha = alpha, linewidth = linewidth)) +
-    xlab("Time") +
-    ylab(y_title) +
-    theme_minimal() +
-    scale_alpha_identity() +
-    scale_linewidth_identity()
+  with(preds_plot,
+       {
+         ggplot(preds_plot, aes(x = time, y = fun, group = id, color = cluster)) +
+           geom_line(aes(alpha = alpha, linewidth = linewidth)) +
+           xlab("Time") +
+           ylab(y_title) +
+           theme_minimal() +
+           scale_alpha_identity() +
+           scale_linewidth_identity()
+       }
+  )
 }
 
-
+#' @title Plot parrallel coordinates plot for counterfactual explanations
+#'
+#' @param counterfactual_explanations a `counterfactual_explanations` object with counterfactual explanations
+#' @param filtered_examples a data frame with counterfactual examples. If NULL, all counterfactual examples from `counterfactual_explanations` will be used
+#' @param variables a numeric vector of column indices representing variables to plot. If NULL, all variables will be on the plot
+#'
 #' @export
-plot_parallel_coordinates <- function(counterfactual_explanations, filtered_population = NULL, variables = NULL){
+plot_parallel_coordinates <- function(counterfactual_explanations, filtered_examples = NULL, variables = NULL){
   if (is.null(variables)) {
     variables <- 1:ncol(counterfactual_explanations$counterfactual_examples)
   } else if (is.character(variables)) {
@@ -34,14 +51,14 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_popu
     stop("variables must be a numeric vector or a character vector of column names")
   }
 
-  if (is.null(filtered_population)) {
-    filtered_population <- counterfactual_explanations$counterfactual_examples
-    filtered_population_validity <- counterfactual_explanations$objective_values$validity
-  } else if (!all(colnames(counterfactual_explanations$counterfactual_examples) == colnames(filtered_population[,1:ncol(counterfactual_explanations$counterfactual_examples)]))) {
-    stop("filtered_population must have the same columns as counterfactual_explanations$counterfactual_examples")
+  if (is.null(filtered_examples)) {
+    filtered_examples <- counterfactual_explanations$counterfactual_examples
+    filtered_examples_validity <- counterfactual_explanations$objective_values$validity
+  } else if (!all(colnames(counterfactual_explanations$counterfactual_examples) == colnames(filtered_examples[,1:ncol(counterfactual_explanations$counterfactual_examples)]))) {
+    stop("filtered_examples must have the same columns as counterfactual_explanations$counterfactual_examples")
   } else {
-    filtered_population_validity <- filtered_population$validity
-    filtered_population <- filtered_population[,1:ncol(counterfactual_explanations$counterfactual_examples)]
+    filtered_examples_validity <- filtered_examples$validity
+    filtered_examples <- filtered_examples[,1:ncol(counterfactual_explanations$counterfactual_examples)]
   }
 
   whole_population <- rbind(counterfactual_explanations$original_observation, counterfactual_explanations$counterfactual_examples)
@@ -50,18 +67,18 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_popu
   mins <- apply(whole_population, 2, min)
   maxs <- apply(whole_population, 2, max)
 
-  filtered_population <- t((t(filtered_population) - mins) / (maxs - mins))
+  filtered_examples <- t((t(filtered_examples) - mins) / (maxs - mins))
   nan_columns <- which(maxs-mins == 0)
-  filtered_population[, nan_columns] <- 0
+  filtered_examples[, nan_columns] <- 0
 
   original_obs <- t((t(counterfactual_explanations$original_observation) - mins) / (maxs - mins))
   original_obs[, nan_columns] <- 0
 
-  plot_df <- data.frame(rbind(original_obs, filtered_population))
+  plot_df <- data.frame(rbind(original_obs, filtered_examples))
   plot_df <- plot_df[, variables]
   rownames(plot_df) <- NULL
-  plot_df$validity <- c(0, filtered_population_validity)
-  plot_df$type <- c("original_observation", rep("counterfactual", nrow(filtered_population)))
+  plot_df$validity <- c(0, filtered_examples_validity)
+  plot_df$type <- c("original_observation", rep("counterfactual", nrow(filtered_examples)))
   plot_df$id <- 1:nrow(plot_df)
 
   text_df <- data.frame(
@@ -72,27 +89,32 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_popu
 
   long_plot_df <- reshape2::melt(plot_df, id.vars = c("validity", "type", "id"))
 
-  ggplot(long_plot_df[long_plot_df$type == "counterfactual", ],
-         aes(x = variable, y = value, group=id, color = validity)) +
-    geom_line(linewidth = 0.5, alpha=0.4) +
-    geom_line(data = long_plot_df[long_plot_df$type == "original_observation", ],
-              aes(x = variable, y = value, group=id),
-              color = "mediumvioletred", linewidth = 1) +
-    scale_color_distiller(palette = "Purples") +
-    theme_minimal() +
-    labs(title = "Parallel Coordinates Plot",
-         x = "Variable",
-         y = "Scaled variable value",
-         caption = "Variable values are scaled to [0, 1] range.") +
-    theme(legend.position = "bottom",
-          plot.caption = element_text(hjust = 0.5, size = 7)) +
-    geom_text(data = text_df, inherit.aes = FALSE,
-              aes(x = variable, y = value, label = label), size=3)
+  with(long_plot_df,
+       {
+         ggplot(long_plot_df[long_plot_df$type == "counterfactual", ],
+                aes(x = variable, y = value, group=id, color = validity)) +
+           geom_line(linewidth = 0.5, alpha=0.4) +
+           geom_line(data = long_plot_df[long_plot_df$type == "original_observation", ],
+                     aes(x = variable, y = value, group=id),
+                     color = "mediumvioletred", linewidth = 1) +
+           scale_color_distiller(palette = "Purples") +
+           theme_minimal() +
+           labs(title = "Parallel Coordinates Plot",
+                x = "Variable",
+                y = "Scaled variable value",
+                caption = "Variable values are scaled to [0, 1] range.") +
+           theme(legend.position = "bottom",
+                 plot.caption = element_text(hjust = 0.5, size = 7)) +
+           geom_text(data = text_df, inherit.aes = FALSE,
+                     aes(x = variable, y = value, label = label), size=3)
+       }
+  )
+
 }
 
 
 #' @export
-plot_changes_frequency <- function(counterfactual_explanations, filtered_population = NULL, variables = NULL){
+plot_changes_frequency <- function(counterfactual_explanations, filtered_examples = NULL, variables = NULL){
   if (is.null(variables)) {
     variables <- 1:ncol(counterfactual_explanations$counterfactual_examples)
   } else if (is.character(variables)) {
@@ -101,44 +123,48 @@ plot_changes_frequency <- function(counterfactual_explanations, filtered_populat
     stop("variables must be a numeric vector or a character vector of column names")
   }
 
-  if (is.null(filtered_population)) {
-    filtered_population <- counterfactual_explanations$counterfactual_examples
-    filtered_population_validity <- counterfactual_explanations$objective_values$validity
-  } else if (!all(colnames(counterfactual_explanations$counterfactual_examples) == colnames(filtered_population[,1:ncol(counterfactual_explanations$counterfactual_examples)]))) {
-    stop("filtered_population must have the same columns as counterfactual_explanations$counterfactual_examples")
+  if (is.null(filtered_examples)) {
+    filtered_examples <- counterfactual_explanations$counterfactual_examples
+    filtered_examples_validity <- counterfactual_explanations$objective_values$validity
+  } else if (!all(colnames(counterfactual_explanations$counterfactual_examples) == colnames(filtered_examples[,1:ncol(counterfactual_explanations$counterfactual_examples)]))) {
+    stop("filtered_examples must have the same columns as counterfactual_explanations$counterfactual_examples")
   } else {
-    filtered_population_validity <- filtered_population$validity
-    filtered_population <- filtered_population[,1:ncol(counterfactual_explanations$counterfactual_examples)]
+    filtered_examples_validity <- filtered_examples$validity
+    filtered_examples <- filtered_examples[,1:ncol(counterfactual_explanations$counterfactual_examples)]
   }
 
-  plot_df <- colMeans(data.frame(as.list(counterfactual_explanations$original_observation) != filtered_population))
+  plot_df <- colMeans(data.frame(as.list(counterfactual_explanations$original_observation) != filtered_examples))
   plot_df <- plot_df[variables]
   long_plot_df <- reshape2::melt(plot_df)
   long_plot_df$variable <- rownames(long_plot_df)
   long_plot_df <- long_plot_df[long_plot_df$value > 0,]
 
-  ggplot(long_plot_df, aes(y = reorder(variable, value), x = value, fill = value)) +
-    geom_bar(stat = "identity", fill="darkorchid4", width = 0.7) +
-    scale_x_continuous(expand = c(0, 2),
-                       limits=c(0, 100)) +
-    theme_minimal() +
-    labs(title = "Frequency of variable changes",
-         y = "Variable",
-         x = "Fraction of counterfactuals with changes")
+  with(long_plot_df,
+       {
+         ggplot(long_plot_df, aes(y = reorder(variable, value), x = value, fill = value)) +
+           geom_bar(stat = "identity", fill="darkorchid4", width = 0.7) +
+           scale_x_continuous(expand = c(0, 2),
+                              limits=c(0, 100)) +
+           theme_minimal() +
+           labs(title = "Frequency of variable changes",
+                y = "Variable",
+                x = "Fraction of counterfactuals with changes")
+       }
+  )
 }
 
 
 #' @export
 plot_counterfactual_predictions <- function(counterfactual_explanations,
                                             filtered_predictions = NULL,
-                                            filtered_population = NULL,
+                                            filtered_examples = NULL,
                                             function_type = NULL){
-  if (is.null(filtered_population)) {
-    filtered_population <- counterfactual_explanations$counterfactual_examples
-    filtered_population_objective_values <- counterfactual_explanations$objective_values
+  if (is.null(filtered_examples)) {
+    filtered_examples <- counterfactual_explanations$counterfactual_examples
+    filtered_examples_objective_values <- counterfactual_explanations$objective_values
   } else {
-    filtered_population_objective_values <- filtered_population[,(ncol(counterfactual_explanations$counterfactual_examples)+1):ncol(filtered_population)]
-    filtered_population <- filtered_population[,1:ncol(counterfactual_explanations$counterfactual_examples)]
+    filtered_examples_objective_values <- filtered_examples[,(ncol(counterfactual_explanations$counterfactual_examples)+1):ncol(filtered_examples)]
+    filtered_examples <- filtered_examples[,1:ncol(counterfactual_explanations$counterfactual_examples)]
   }
   if (is.null(filtered_predictions)) {
     filtered_predictions <- counterfactual_explanations$predictions
@@ -173,12 +199,12 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
   y_title <- function_names[function_type]
 
   colnames(filtered_predictions) <- counterfactual_explanations$times
-  plot_df <- cbind(filtered_population,
-                   id = rownames(filtered_population),
+  plot_df <- cbind(filtered_examples,
+                   id = rownames(filtered_examples),
                    filtered_predictions)
 
   plot_df <- reshape2::melt(plot_df,
-                            id.vars = 1:(ncol(filtered_population)+1),
+                            id.vars = 1:(ncol(filtered_examples)+1),
                             value.name = "fun",
                             variable.name = "time")
 
@@ -219,14 +245,14 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
   )
 
   for (i in 1:nrow(filtered_predictions)) {
-    tmp <- plot_df[plot_df$id == rownames(filtered_population)[i],]
-    loss_values <- filtered_population_objective_values[i,]
-    var_values <- filtered_population[i,]
+    tmp <- plot_df[plot_df$id == rownames(filtered_examples)[i],]
+    loss_values <- filtered_examples_objective_values[i,]
+    var_values <- filtered_examples[i,]
     var_values_str <- paste0("<i>", names(var_values), "</i>: ", round(var_values, 3), "<br>", collapse="")
     fig <- fig %>% add_trace(
       x = tmp$time,
       y = tmp$fun,
-      text = rownames(filtered_population)[i],
+      text = rownames(filtered_examples)[i],
       type = "scatter",
       mode = "lines",
       line = list(width = 0.7, color = "darkorchid"),
