@@ -1,4 +1,23 @@
 #' @export
+get_cluster_envelope <- function(preds, clusters, cluster_id, q = 0.05){
+  group_preds <- preds[clusters == cluster_id,]
+  lower_bound <- apply(group_preds, 2, function(x) quantile(x, probs = q))
+  upper_bound <- apply(group_preds, 2, function(x) quantile(x, probs = 1 - q))
+  # check if preds are survival functions (non increasing)
+  if (all(apply(preds, 1, diff) <= 0))
+    type <- "survival"
+  else
+    type <- "hazard"
+
+  res <- list(
+    "lower_bound" = lower_bound,
+    "upper_bound" = upper_bound,
+    "type" = type)
+  class(res) <- "target_envelope"
+  return(res)
+}
+
+#' @export
 translate_target_envelope <- function(target_envelope){
   stopifnot("target_envelope should be of class 'target_envelope'" = class(target_envelope) == "target_envelope")
   stopifnot("target_envelope should have a type" = "type" %in% names(target_envelope))
