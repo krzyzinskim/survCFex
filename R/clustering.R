@@ -8,7 +8,6 @@ survival_distance_matrix <- function(preds, times, weights) {
   return(dists)
 }
 
-# survival clustering based on log-rank distance
 get_clustering_dendrogram <- function(distance_matrix, method = "ward.D2") {
   hclust(as.dist(distance_matrix), method = "ward.D2")
 }
