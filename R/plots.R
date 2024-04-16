@@ -75,17 +75,27 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_exam
     function(x) as.numeric(as.factor(x))
   )
 
-  # scale min-max to [0, 1] range
-  mins <- apply(whole_population[,numeric_mask], 2, min)
-  maxs <- apply(whole_population[,numeric_mask], 2, max)
-  nan_columns <- which(maxs-mins == 0)
-
-  filtered_examples[,numeric_mask] <- t((t(filtered_examples[,numeric_mask]) - mins) / (maxs - mins))
-  filtered_examples[,numeric_mask][,nan_columns] <- 0
+  filtered_examples[,!numeric_mask] <- lapply(
+    filtered_examples[,!numeric_mask, drop=FALSE],
+    function(x) as.numeric(as.factor(x))
+  )
 
   original_obs <- counterfactual_explanations$original_observation
-  original_obs[,numeric_mask] <- t((t(counterfactual_explanations$original_observation[,numeric_mask]) - mins) / (maxs - mins))
-  original_obs[,numeric_mask][,nan_columns] <- 0
+  original_obs[!numeric_mask] <- lapply(
+    original_obs[,!numeric_mask, drop=FALSE],
+    function(x) as.numeric(as.factor(x))
+  )
+
+  # scale min-max to [0, 1] range
+  mins <- apply(whole_population, 2, min)
+  maxs <- apply(whole_population, 2, max)
+  nan_columns <- which(maxs-mins == 0)
+
+  filtered_examples <- t((t(filtered_examples) - mins) / (maxs - mins))
+  filtered_examples[,nan_columns] <- 0
+
+  original_obs <- t((t(original_obs) - mins) / (maxs - mins))
+  original_obs[,nan_columns] <- 0
 
   plot_df <- data.frame(rbind(original_obs, filtered_examples))
   plot_df <- plot_df[, variables]
@@ -93,6 +103,9 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_exam
   plot_df$validity <- c(0, filtered_examples_validity)
   plot_df$type <- c("original_observation", rep("counterfactual", nrow(filtered_examples)))
   plot_df$id <- 1:nrow(plot_df)
+
+  mins[!numeric_mask] <- sapply(categorical_variables_orderings, function(x) names(x)[which.min(x)])
+  maxs[!numeric_mask] <- sapply(categorical_variables_orderings, function(x) names(x)[which.max(x)])
 
   text_df <- data.frame(
     variable = rep(variables, 2),
