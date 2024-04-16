@@ -31,9 +31,3 @@ survival_distance <- function(sf, sf_others, times, weights = rep(1/length(times
   tmp <- (sf_difference[,1:(n - 1)] * weights[1:(n-1)] + sf_difference[,2:n] * weights[2:n]) * as.list(diff(times)) / 2
   return(as.numeric(sqrt(rowSums(tmp))))
 }
-
-
-
-
-
-
