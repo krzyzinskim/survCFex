@@ -196,7 +196,7 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
   }
   original_prediction <- counterfactual_explanations$original_prediction[1,]
   target_envelope <- counterfactual_explanations$target_envelope
-  numeric_mask <- sapply(var_values, is.numeric)
+  numeric_mask <- sapply(counterfactual_explanations$original_observation, is.numeric)
 
   counterfactuals_type <- class(counterfactual_explanations)[2]
   if (counterfactuals_type == "multiobjective_counterfactuals"){
