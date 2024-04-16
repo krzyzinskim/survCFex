@@ -17,9 +17,9 @@ analyze <- function(counterfactual_explanations) {
     titlePanel("Counterfactual Analysis"),
     sidebarLayout(
       sidebarPanel(
-        h4("Filter counterfactuals by objective values"),
-        h6("Choose the maximum value for each loss function."),
-        p("Note that all objective values are minimized."),
+        h3("Filter counterfactuals by objective values"),
+        h5("Choose the maximum value for each loss function."),
+        h6("Note that all objective values are minimized."),
         lapply(loss_functions, function(loss) {
           sliderInput(
             paste0(loss, "_slider"),
