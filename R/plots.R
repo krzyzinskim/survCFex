@@ -123,7 +123,7 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_exam
            geom_line(data = long_plot_df[long_plot_df$type == "original_observation", ],
                      aes(x = variable, y = value, group=id),
                      color = "mediumvioletred", linewidth = 1) +
-           scale_color_distiller(palette = "Purples") +
+           scale_color_distiller(palette = "Purples", guide = guide_colorbar(barwidth = 15)) +
            theme_minimal() +
            labs(title = "Parallel Coordinates Plot",
                 x = "Variable",
@@ -169,7 +169,7 @@ plot_changes_frequency <- function(counterfactual_explanations, filtered_example
        {
          ggplot(long_plot_df, aes(y = reorder(variable, value), x = value, fill = value)) +
            geom_bar(stat = "identity", fill="darkorchid4", width = 0.7) +
-           scale_x_continuous(limits=c(0, 1)) +
+           scale_x_continuous(limits=c(0, 1), expand = c(0, 0)) +
            theme_minimal() +
            labs(title = "Frequency of variable changes",
                 y = "Variable",
