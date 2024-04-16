@@ -10,15 +10,13 @@
 #' @export
 plot_predictions <- function(preds, times, preds_labels=NULL, alpha=0.3, linewidth=0.3) {
   if (is.null(preds_labels)) {
-    preds_labels <- factor(rep("none", nrow(preds)))
+    preds_labels <- factor(rep("all", nrow(preds)))
   }
-
 
   if (all(apply(preds, 1, diff) <= 0))
     y_title <- "Survival probability"
   else
     y_title <- "Cumuative hazard"
-
 
   preds_plot <- prepare_predictions_to_plot(preds, times, preds_labels, alpha, linewidth)
 
@@ -60,19 +58,34 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_exam
     filtered_examples_validity <- filtered_examples$validity
     filtered_examples <- filtered_examples[,1:ncol(counterfactual_explanations$counterfactual_examples)]
   }
-
+  numeric_mask <- sapply(counterfactual_explanations$original_observation, is.numeric)
   whole_population <- rbind(counterfactual_explanations$original_observation, counterfactual_explanations$counterfactual_examples)
 
+  categorical_variables_orderings <- lapply(
+    counterfactual_explanations$counterfactual_examples[,!numeric_mask, drop=FALSE],
+    function(x) {
+      factor_var <- as.factor(x)
+      factor_levels <- levels(factor_var)
+      setNames(1:length(factor_levels), factor_levels)
+    }
+  )
+
+  whole_population[,!numeric_mask] <- lapply(
+    whole_population[,!numeric_mask, drop=FALSE],
+    function(x) as.numeric(as.factor(x))
+  )
+
   # scale min-max to [0, 1] range
-  mins <- apply(whole_population, 2, min)
-  maxs <- apply(whole_population, 2, max)
-
-  filtered_examples <- t((t(filtered_examples) - mins) / (maxs - mins))
+  mins <- apply(whole_population[,numeric_mask], 2, min)
+  maxs <- apply(whole_population[,numeric_mask], 2, max)
   nan_columns <- which(maxs-mins == 0)
-  filtered_examples[, nan_columns] <- 0
 
-  original_obs <- t((t(counterfactual_explanations$original_observation) - mins) / (maxs - mins))
-  original_obs[, nan_columns] <- 0
+  filtered_examples[,numeric_mask] <- t((t(filtered_examples[,numeric_mask]) - mins) / (maxs - mins))
+  filtered_examples[,numeric_mask][,nan_columns] <- 0
+
+  original_obs <- counterfactual_explanations$original_observation
+  original_obs[,numeric_mask] <- t((t(counterfactual_explanations$original_observation[,numeric_mask]) - mins) / (maxs - mins))
+  original_obs[,numeric_mask][,nan_columns] <- 0
 
   plot_df <- data.frame(rbind(original_obs, filtered_examples))
   plot_df <- plot_df[, variables]
@@ -143,8 +156,7 @@ plot_changes_frequency <- function(counterfactual_explanations, filtered_example
        {
          ggplot(long_plot_df, aes(y = reorder(variable, value), x = value, fill = value)) +
            geom_bar(stat = "identity", fill="darkorchid4", width = 0.7) +
-           scale_x_continuous(expand = c(0, 2),
-                              limits=c(0, 100)) +
+           scale_x_continuous(limits=c(0, 1)) +
            theme_minimal() +
            labs(title = "Frequency of variable changes",
                 y = "Variable",
@@ -171,6 +183,7 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
   }
   original_prediction <- counterfactual_explanations$original_prediction[1,]
   target_envelope <- counterfactual_explanations$target_envelope
+  numeric_mask <- sapply(var_values, is.numeric)
 
   counterfactuals_type <- class(counterfactual_explanations)[2]
   if (counterfactuals_type == "multiobjective_counterfactuals"){
@@ -208,10 +221,12 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
                             value.name = "fun",
                             variable.name = "time")
 
-  plot_df$time <- as.numeric(plot_df$time)
+  plot_df$time <- as.numeric(as.character(plot_df$time))
 
   var_values <- counterfactual_explanations$original_observation
-  var_values_str <- paste0("<i>", names(var_values), "</i>: ", round(var_values, 3), "<br>", collapse="")
+  var_values[numeric_mask] <- round(var_values[numeric_mask], 3)
+
+  var_values_str <- paste0("<i>", names(var_values), "</i>: ", var_values, "<br>", collapse="")
 
   fig <- plot_ly(
     x = counterfactual_explanations$times,
@@ -248,7 +263,8 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
     tmp <- plot_df[plot_df$id == rownames(filtered_examples)[i],]
     loss_values <- filtered_examples_objective_values[i,]
     var_values <- filtered_examples[i,]
-    var_values_str <- paste0("<i>", names(var_values), "</i>: ", round(var_values, 3), "<br>", collapse="")
+    var_values[numeric_mask] <- round(var_values[numeric_mask], 3)
+    var_values_str <- paste0("<i>", names(var_values), "</i>: ", var_values, "<br>", collapse="")
     fig <- fig %>% add_trace(
       x = tmp$time,
       y = tmp$fun,
@@ -282,12 +298,14 @@ prepare_predictions_to_plot <- function(preds, times, preds_labels=NULL, alpha=0
   preds_plot$id <- rownames(preds_plot)
   if (!is.null(preds_labels)) {
     preds_plot$cluster <- as.factor(preds_labels)
+  } else {
+    preds_plot$cluster <- factor(rep("all", nrow(preds_plot)))
   }
   preds_plot$alpha <- alpha
   preds_plot$linewidth <- linewidth
   preds_plot <- reshape2::melt(preds_plot, id.vars = c("id", "cluster", "alpha", "linewidth"),
-                              value.name = "value")
-  preds_plot$time <- as.numeric(preds_plot$time)
+                              value.name = "fun",
+                              variable.name = "time")
+  preds_plot$time <- as.numeric(as.character(preds_plot$time))
   return(preds_plot)
 }
-
