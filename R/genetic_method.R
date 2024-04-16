@@ -82,9 +82,11 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
                                binary_variables_indices))
   if (length(provided_indices) < p){
     classes <- sapply(background_data, class)
+    integer_valued <- sapply(background_data[classes != "factor"], function(x) all(x %% 1 == 0))
     additional_numerical_indices <- union(which(classes == "numeric"), which(classes == "integer"))
     additional_categorical_indices <- which(classes == "factor")
-    additional_integer_indices <- which(classes == "integer")
+    additional_integer_indices <- union(which(classes == "integer"), which(classes != "factor")[integer_valued])
+
     if (length(additional_categorical_indices))
       categorical_variables_indices <- union(categorical_variables_indices, additional_categorical_indices)
     if (length(additional_numerical_indices))
@@ -125,6 +127,7 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
                                                  target_change, target_envelope,
                                                  data_range, categorical_variables_indices,
                                                  data_distance_p, plausibility_k_neighbors)
+
   history <- data.frame(generation = 0, objective_values)
   avg_objective_values <- colMeans(objective_values)
 
@@ -140,8 +143,8 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
                                   stdevs,
                                   sbx_eta,
                                   recombination_probability, gene_recombination_probability,
-                                  mutation_probability, gene_mutation_probability, revert_change_probability, validity_threshold
-  )
+                                  mutation_probability, gene_mutation_probability, revert_change_probability, validity_threshold)
+
   population <- rbind(population, children)
 
   if (verbose){
@@ -370,7 +373,7 @@ recombination <- function(population, parents_indices,
                           numerical_variables_indices, categorical_variables_indices, integer_variables_indices,
                           sbx_eta=5, lower, upper){
   n <- length(parents_indices)
-  children <- matrix(NA, nrow = n, ncol = ncol(population))
+  children <- population
   stopifnot(length(numerical_variables_indices) == length(lower) &
               length(numerical_variables_indices) == length(upper))
 
@@ -379,10 +382,11 @@ recombination <- function(population, parents_indices,
   lower[which_numerical_integer] <- lower[which_numerical_integer] - 0.5
   upper[which_numerical_integer] <- upper[which_numerical_integer] + 0.5
 
-  # for numerical features apply simulated binary crossover (SBX)
   for (i in 1:(n/2)){
     parents_pair <- list(as.numeric(population[parents_indices[2*i-1], numerical_variables_indices]),
                          as.numeric(population[parents_indices[2*i], numerical_variables_indices]))
+
+    # for numerical features apply simulated binary crossover (SBX)
     new_children <- ecr::recSBX(parents_pair,
                                 sbx_eta,
                                 gene_recombination_probability,
@@ -399,8 +403,8 @@ recombination <- function(population, parents_indices,
       children[2*i, j] <- parents_pair[[rnd_parent[2]]][,j]
     }
   }
-  children[, integer_variables_indices] <- round(children[, integer_variables_indices])
 
+  children[, integer_variables_indices] <- round(children[, integer_variables_indices])
   return(children)
 }
 
@@ -447,9 +451,8 @@ mutation <- function(children, mutation_probability, gene_mutation_probability,
                                                                            1 - children[rows_to_mutate, categorical_variables_indices[i]],
                                                                            children[rows_to_mutate, categorical_variables_indices[i]])
     } else{
-      children[rows_to_mutate, categorical_variables_indices[i]] <- ifelse(mutation_mask[rows_to_mutate],
-                                                                           sample(categorical_levels[[i]], n, replace = TRUE)[rows_to_mutate],
-                                                                           children[rows_to_mutate, categorical_variables_indices[i]])
+      children[rows_to_mutate & mutation_mask, categorical_variables_indices[i]] <-
+        sample(categorical_levels[[i]], n, replace = TRUE)[rows_to_mutate & mutation_mask]
     }
   }
   return(children)
@@ -463,7 +466,7 @@ transform_to_original_x <- function(population, original_x,
       population[,i] <- original_x[[i]]
     } else{
       revert_change_mask <- runif(nrow(population)) < revert_change_probability
-      population[, i] <- ifelse(revert_change_mask, original_x[[i]], population[, i])
+      population[revert_change_mask, i] <- original_x[[i]]
     }
   }
   return(population)
@@ -557,7 +560,6 @@ initialize_population_ice <- function(explainer, times, weights, target_envelope
   n_categorical <- length(categorical_variables_indices)
 
   population <- new_observation[rep(1, population_size),]
-
   # clip to plausible range and levels
   for (i in seq_len(n_numerical)){
     mutation_mask <- runif(population_size) < probs[numerical_variables_indices[i]]
@@ -567,11 +569,9 @@ initialize_population_ice <- function(explainer, times, weights, target_envelope
   }
   for (i in seq_len(n_categorical)){
     mutation_mask <- runif(population_size) < probs[categorical_variables_indices[i]]
-    population[, categorical_variables_indices[i]] <- ifelse(mutation_mask,
-                                                             sample(plausible_categorical_values[[i]],population_size, replace = TRUE),
-                                                             population[, categorical_variables_indices[i]])
+    tmp <- sample(plausible_categorical_values[[i]], population_size, replace = TRUE)
+    population[mutation_mask, categorical_variables_indices[i]] <- tmp[mutation_mask]
   }
-
   population[, integer_variables_indices] <- round(population[, integer_variables_indices])
 
   population <- transform_to_original_x(population, new_observation,
