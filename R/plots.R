@@ -1,20 +1,4 @@
-prepare_predictions_to_plot <- function(preds, times, preds_labels=NULL, alpha=0.3, linewidth=0.3) {
-  preds_plot <- as.data.frame(preds)
-  colnames(preds_plot) <- times
-  preds_plot$id <- rownames(preds_plot)
-  if (!is.null(preds_labels)) {
-    preds_plot$cluster <- as.factor(preds_labels)
-  }
-  preds_plot$alpha <- alpha
-  preds_plot$linewidth <- linewidth
-  preds_plot <- tidyr::pivot_longer(preds_plot,
-                             cols = -any_of(c("id", "cluster", "alpha", "linewidth")),
-                             names_to = "time",
-                             values_to = "fun")
-  preds_plot$time <- as.numeric(preds_plot$time)
-  return(preds_plot)
-}
-
+#' @export
 plot_predictions <- function(preds, times, preds_labels=NULL, alpha=0.3, linewidth=0.3) {
   if (is.null(preds_labels)) {
     preds_labels <- factor(rep("none", nrow(preds)))
@@ -39,6 +23,7 @@ plot_predictions <- function(preds, times, preds_labels=NULL, alpha=0.3, linewid
 }
 
 
+#' @export
 plot_cluster_envelopes <- function(preds, clusters, times, q = 0.05, preds_to_plot = NULL, alpha=0.2) {
   if (all(apply(preds, 1, diff) <= 0))
     y_title <- "Survival probability"
@@ -81,6 +66,7 @@ plot_cluster_envelopes <- function(preds, clusters, times, q = 0.05, preds_to_pl
 
 }
 
+#' @export
 plot_survival_weights <- function(explainer, times, p=0, q=0){
   stopifnot(length(p) == length(q))
   weights_to_plot_df <- data.frame()
@@ -101,7 +87,7 @@ plot_survival_weights <- function(explainer, times, p=0, q=0){
     theme(legend.position = "bottom")
 }
 
-
+#' @export
 plot_parallel_coordinates <- function(counterfactual_explanations, filtered_population = NULL, variables = NULL){
   if (is.null(variables)) {
     variables <- 1:ncol(counterfactual_explanations$counterfactual_examples)
@@ -167,7 +153,7 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_popu
               aes(x = variable, y = value, label = label), size=3)
 }
 
-
+#' @export
 plot_changes_frequency <- function(counterfactual_explanations, filtered_population = NULL, variables = NULL){
   if (is.null(variables)) {
     variables <- 1:ncol(counterfactual_explanations$counterfactual_examples)
@@ -204,6 +190,7 @@ plot_changes_frequency <- function(counterfactual_explanations, filtered_populat
          x = "Percentage of counterfactuals with changes")
 }
 
+#' @export
 plot_counterfactual_predictions <- function(counterfactual_explanations,
                                             filtered_predictions = NULL,
                                             filtered_population = NULL,
@@ -323,5 +310,22 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
   fig <- config(fig, displayModeBar = FALSE)
 
   fig
+}
+
+prepare_predictions_to_plot <- function(preds, times, preds_labels=NULL, alpha=0.3, linewidth=0.3) {
+  preds_plot <- as.data.frame(preds)
+  colnames(preds_plot) <- times
+  preds_plot$id <- rownames(preds_plot)
+  if (!is.null(preds_labels)) {
+    preds_plot$cluster <- as.factor(preds_labels)
+  }
+  preds_plot$alpha <- alpha
+  preds_plot$linewidth <- linewidth
+  preds_plot <- tidyr::pivot_longer(preds_plot,
+                                    cols = -any_of(c("id", "cluster", "alpha", "linewidth")),
+                                    names_to = "time",
+                                    values_to = "fun")
+  preds_plot$time <- as.numeric(preds_plot$time)
+  return(preds_plot)
 }
 

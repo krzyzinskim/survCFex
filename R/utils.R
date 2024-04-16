@@ -1,11 +1,14 @@
+#' @export
 translate_survival_to_cumulative_hazard <- function(survival_function) {
   return(-log(survival_function))
 }
 
+#' @export
 translate_cumulative_hazard_to_survival <- function(cumulative_hazard_function) {
   return(exp(-cumulative_hazard_function))
 }
 
+#' @export
 translate_target_envelope <- function(target_envelope){
   stopifnot("target_envelope should be of class 'target_envelope'" = class(target_envelope) == "target_envelope")
   stopifnot("target_envelope should have a type" = "type" %in% names(target_envelope))
@@ -23,7 +26,7 @@ translate_target_envelope <- function(target_envelope){
   return(new_target_envelope)
 }
 
-
+#' @export
 print.counterfactual_explanations <- function(x, ...){
   cat("Counterfactual explanations\n")
   cat(paste("\n-> Type:", class(x)[2], "\n"))
