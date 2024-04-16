@@ -44,7 +44,7 @@ gower_distance_loss <- function(x, z, data_range, categorical_variables_indices 
 # plausibility (in distribution)
 # based on distance to k nearest neighbors from the explainer dataset
 plausiblity_knn_loss <- function(z, background_data, data_range, categorical_variables_indices = NULL, k = 5){
-  dist_matrix <- data_distance_loss(z, background_data, data_range, categorical_variables_indices, 1)
+  dist_matrix <- gower_distance_loss(z, background_data, data_range, categorical_variables_indices, 1)
   return(apply(dist_matrix, 1, function(x) mean(sort(x)[1:k])))
 }
 

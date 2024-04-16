@@ -1,7 +1,8 @@
+#' @import shiny
 #' @export
 analyze <- function(counterfactual_explanations) {
   # Check data structure
-  if (!is(counterfactual_explanations, "counterfactual_explanations") |
+  if (!inherits(counterfactual_explanations, "counterfactual_explanations") |
       !is.data.frame(counterfactual_explanations$original_observation) |
       !is.data.frame(counterfactual_explanations$counterfactual_examples) |
       !is.data.frame(counterfactual_explanations$objective_values)) {
@@ -52,7 +53,7 @@ analyze <- function(counterfactual_explanations) {
                                  "Cumulative Hazard Function" = "chf"),
                      selected = ifelse(type == "multiobjective_counterfactuals", "survival", "chf")
                    ),
-                   plotly::plotlyOutput("counterfactuals_plot", height="400px"),
+                   plotlyOutput("counterfactuals_plot", height="400px"),
                    plotOutput("parallel_coordinates", height="400px"),
                    plotOutput("changes_frequency", height="300px"))
         )

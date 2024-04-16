@@ -1,3 +1,4 @@
+#' @import survex
 #' @export
 multiobjective_counterfactuals <- function(explainer, new_observation, times,
                                            background_data=NULL,
@@ -555,7 +556,7 @@ initialize_population_ice <- function(explainer, times, weights, target_envelope
   n_numerical <- length(numerical_variables_indices)
   n_categorical <- length(categorical_variables_indices)
 
-  population <- x[rep(1, population_size),]
+  population <- new_observation[rep(1, population_size),]
 
   # clip to plausible range and levels
   for (i in seq_len(n_numerical)){

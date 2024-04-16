@@ -13,6 +13,8 @@
 #' @param c2 social parameter in PSO algorithm
 #' @param seed seed for random number generation
 #'
+#' @import survex
+#' @export
 kovalev_method <- function(explainer, new_observation, num_iter=200, num_particles=1000,
                            verbose=10, r=50, C=1e6, w=0.729, c1=1.4945, c2=1.4945, seed=NULL){
   # mean value of the original observation
@@ -31,7 +33,7 @@ kovalev_method <- function(explainer, new_observation, num_iter=200, num_particl
 
   # for current candidates (explainer$data)
   # calculate distances to the original observation
-  xz_distances <- distance_to_x(x, z_candidates)
+  xz_distances <- euclidean_distance_loss(x, z_candidates)
   # calculate losses
   losses <- kovalev_counterfactual_loss(explainer, mean_value,
                                 rescale_to_original(z_candidates, mu, sigma),
@@ -44,7 +46,7 @@ kovalev_method <- function(explainer, new_observation, num_iter=200, num_particl
   # iteration 0 - initialization
   set.seed(seed)
   particles <- data.frame(apply(data_range, 1, function(x) runif(num_particles, x[1], x[2])))
-  particles <- restriction_procedure(x, particles, distance_to_x(x, particles), radius_closest, data_range)
+  particles <- restriction_procedure(x, particles, euclidean_distance_loss(x, particles), radius_closest, data_range)
   particles[1, ] <- as.matrix(z_closest)
 
   velocities <- matrix(0, nrow = num_particles, ncol = ncol(particles))
@@ -52,7 +54,7 @@ kovalev_method <- function(explainer, new_observation, num_iter=200, num_particl
 
   best_losses <- kovalev_counterfactual_loss(explainer, mean_value,
                                      rescale_to_original(best_positions, mu, sigma),
-                                     distance_to_x(x, best_positions))
+                                     euclidean_distance_loss(x, best_positions))
   best_loss <- min(best_losses)
   best_position <- best_positions[which.min(best_losses),]
 
@@ -69,7 +71,7 @@ kovalev_method <- function(explainer, new_observation, num_iter=200, num_particl
                                        radius_closest, data_range)
 
     # update best positions
-    losses <- counterfactual_loss(explainer, mean_value,
+    losses <- kovalev_counterfactual_loss(explainer, mean_value,
                                   rescale_to_original(particles, mu, sigma),
                                   euclidean_distance_loss(x, particles))
     best_positions[losses < best_losses, ] <- particles[losses < best_losses, ]

@@ -11,10 +11,14 @@ RoxygenNote: 7.3.1
 Imports:
     survival,
     survex,
-    ranger,
     ggplot2,
     plotly,
     shiny,
-    DT
+    DT,
+    treeshap,
+    reshape2,
+    ecr,
+    stats,
+    utils
 Suggests:
-    tidyr
+    ranger

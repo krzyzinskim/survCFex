@@ -1,3 +1,4 @@
+#' @import survex
 #' @export
 treebased_counterfactuals <- function(explainer,
                                       new_observation,
@@ -138,7 +139,7 @@ treebased_counterfactuals <- function(explainer,
   objective_values <-  data.frame(
     list(
       "validity" = dist_res,
-      "similarity" = data_distance_loss(new_observation, counterfactual_examples,
+      "similarity" = gower_distance_loss(new_observation, counterfactual_examples,
                                         data_range, categorical_variables_indices, 1),
       "sparsity" = sparsity_loss(new_observation, counterfactual_examples),
       "plausibility" = plausiblity_knn_loss(counterfactual_examples, background_data, data_range, categorical_variables_indices, 5)

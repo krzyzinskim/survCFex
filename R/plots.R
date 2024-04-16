@@ -1,3 +1,4 @@
+#' @import ggplot2
 #' @export
 plot_predictions <- function(preds, times, preds_labels=NULL, alpha=0.3, linewidth=0.3) {
   if (is.null(preds_labels)) {
@@ -110,7 +111,7 @@ plot_changes_frequency <- function(counterfactual_explanations, filtered_populat
     filtered_population <- filtered_population[,1:ncol(counterfactual_explanations$counterfactual_examples)]
   }
 
-  plot_df <- colMeans(data.frame(as.list(counterfactual_explanations$original_observation) != filtered_population)) * 100
+  plot_df <- colMeans(data.frame(as.list(counterfactual_explanations$original_observation) != filtered_population))
   plot_df <- plot_df[variables]
   long_plot_df <- reshape2::melt(plot_df)
   long_plot_df$variable <- rownames(long_plot_df)
@@ -118,13 +119,12 @@ plot_changes_frequency <- function(counterfactual_explanations, filtered_populat
 
   ggplot(long_plot_df, aes(y = reorder(variable, value), x = value, fill = value)) +
     geom_bar(stat = "identity", fill="darkorchid4", width = 0.7) +
-    scale_x_continuous(labels = scales::percent_format(scale = 1),
-                       expand = c(0, 2),
+    scale_x_continuous(expand = c(0, 2),
                        limits=c(0, 100)) +
     theme_minimal() +
     labs(title = "Frequency of variable changes",
          y = "Variable",
-         x = "Percentage of counterfactuals with changes")
+         x = "Fraction of counterfactuals with changes")
 }
 
 
@@ -172,16 +172,16 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
                       "chf" = "Cumulative hazard")
   y_title <- function_names[function_type]
 
-  colnames(filtered_predictions) <- paste0("T=", counterfactual_explanations$times)
+  colnames(filtered_predictions) <- counterfactual_explanations$times
   plot_df <- cbind(filtered_population,
                    id = rownames(filtered_population),
                    filtered_predictions)
 
-  plot_df <- pivot_longer(plot_df,
-                          cols = starts_with("T="),
-                          names_prefix = "T=",
-                          names_to = "time",
-                          values_to = "fun")
+  plot_df <- reshape2::melt(plot_df,
+                            id.vars = 1:(ncol(filtered_population)+1),
+                            value.name = "fun",
+                            variable.name = "time")
+
   plot_df$time <- as.numeric(plot_df$time)
 
   var_values <- counterfactual_explanations$original_observation
@@ -259,10 +259,8 @@ prepare_predictions_to_plot <- function(preds, times, preds_labels=NULL, alpha=0
   }
   preds_plot$alpha <- alpha
   preds_plot$linewidth <- linewidth
-  preds_plot <- tidyr::pivot_longer(preds_plot,
-                                    cols = -any_of(c("id", "cluster", "alpha", "linewidth")),
-                                    names_to = "time",
-                                    values_to = "fun")
+  preds_plot <- reshape2::melt(preds_plot, id.vars = c("id", "cluster", "alpha", "linewidth"),
+                              value.name = "value")
   preds_plot$time <- as.numeric(preds_plot$time)
   return(preds_plot)
 }
