@@ -23,8 +23,6 @@ plot_predictions <- function(preds, times, preds_labels=NULL, alpha=0.3, linewid
 }
 
 
-
-
 #' @export
 plot_parallel_coordinates <- function(counterfactual_explanations, filtered_population = NULL, variables = NULL){
   if (is.null(variables)) {
@@ -91,6 +89,7 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_popu
               aes(x = variable, y = value, label = label), size=3)
 }
 
+
 #' @export
 plot_changes_frequency <- function(counterfactual_explanations, filtered_population = NULL, variables = NULL){
   if (is.null(variables)) {
@@ -127,6 +126,7 @@ plot_changes_frequency <- function(counterfactual_explanations, filtered_populat
          y = "Variable",
          x = "Percentage of counterfactuals with changes")
 }
+
 
 #' @export
 plot_counterfactual_predictions <- function(counterfactual_explanations,
