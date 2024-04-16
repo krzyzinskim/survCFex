@@ -1,5 +1,5 @@
 #' @export
-get_cluster_envelope <- function(preds, clusters, cluster_id, q = 0.05){
+get_envelope <- function(preds, clusters, cluster_id, q = 0.05){
   group_preds <- preds[clusters == cluster_id,]
   lower_bound <- apply(group_preds, 2, function(x) quantile(x, probs = q))
   upper_bound <- apply(group_preds, 2, function(x) quantile(x, probs = 1 - q))
@@ -38,7 +38,7 @@ translate_target_envelope <- function(target_envelope){
 
 
 #' @export
-plot_cluster_envelopes <- function(preds, clusters, times, q = 0.05, preds_to_plot = NULL, alpha=0.2) {
+plot_envelopes <- function(preds, clusters, times, q = 0.05, preds_to_plot = NULL, alpha=0.2) {
   if (all(apply(preds, 1, diff) <= 0))
     y_title <- "Survival probability"
   else
@@ -47,7 +47,7 @@ plot_cluster_envelopes <- function(preds, clusters, times, q = 0.05, preds_to_pl
   n_clusters <- max(clusters)
   envelopes_df <- data.frame()
   for (i in 1:n_clusters) {
-    envelope <- get_cluster_envelope(preds, clusters, i, q)
+    envelope <- get_envelope(preds, clusters, i, q)
     envelope_df <- data.frame(time = times,
                               lower_bound = envelope$lower_bound,
                               upper_bound = envelope$upper_bound,
@@ -62,12 +62,10 @@ plot_cluster_envelopes <- function(preds, clusters, times, q = 0.05, preds_to_pl
     preds_plot <- prepare_predictions_to_plot(preds_to_plot, times)
   }
 
-  with(envelopes_df,
+  p <- with(envelopes_df,
        {
-         p <- ggplot(envelopes_df, aes(x = time, group = cluster, color = factor(cluster), fill = factor(cluster))) +
+          ggplot(envelopes_df, aes(x = time, group = cluster, color = factor(cluster), fill = factor(cluster))) +
            geom_ribbon(aes(ymin = lower_bound, ymax = upper_bound), alpha=alpha, colour=NA) +
-           # geom_line(aes(y = lower_bound)) +
-           # geom_line(aes(y = upper_bound)) +
            xlab("Time") +
            ylab(y_title) +
            theme_minimal() +
@@ -77,12 +75,13 @@ plot_cluster_envelopes <- function(preds, clusters, times, q = 0.05, preds_to_pl
   )
 
   if (!is.null(preds_to_plot)) {
-    with(preds_plot,
+    p <-with(preds_plot,
          {
-           p <- p + geom_line(data = preds_plot, aes(x = time, y = fun, group = id),
+            p + geom_line(data = preds_plot, aes(x = time, y = fun, group = id),
                               alpha=1, linewidth=0.5, inherit.aes = FALSE)
          }
     )
   }
+
   p
 }
