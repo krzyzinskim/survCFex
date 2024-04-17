@@ -22,7 +22,7 @@ get_clustering_utilities <- function(dendrogram, max_k = 10, min_obs = 10) {
     clusters <- cutree(dendrogram, k=k)
     utils[k] <- ifelse(min(table(clusters)) < min_obs,
                        NA,
-                       survdiff(explainer$y ~ clusters)$pvalue)
+                       survdiff(explainer$y ~ clusters)$chisq)
   }
   utils
 }
