@@ -30,6 +30,7 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
   p <- ncol(new_observation)
   stopifnot("Weights must be a numeric vector with non-negative values and sum(weights) > 0" = is.numeric(weights) & all(weights >= 0) & sum(weights) > 0)
   stopifnot("Either target_change or target_envelope must be provided" = !is.null(target_change) | !is.null(target_envelope))
+  check_target_envelope(target_envelope, times)
   stopifnot("Length of times and weights must be the same" = length(times) == length(weights))
   stopifnot("fixed_variables_indices must be a vector of positive integers" =
               is.null(fixed_variables_indices) |
@@ -548,6 +549,7 @@ initialize_population_ice <- function(explainer, times, weights, target_envelope
                     as.list(target_envelope$lower_bound) - sf)
     probs[var] <- survival_distance(0, sf_diff * res$`_yhat_`, times, weights)
   }
+
   min_prob <- min(probs)
   max_prob <- max(probs)
   probs <- (probs - min_prob) * (p_max - p_min) / (max_prob - min_prob) + p_min
