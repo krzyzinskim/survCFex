@@ -5,11 +5,11 @@ library(survex)
 set.seed(42)
 df <- read.csv("experiments/data/exp1_data_complex.csv")
 
-train_ids <- sample(1:nrow(df), 0.8*nrow(df))
-df_train <- df[train_ids,]
-df_test <- df[-train_ids,]
-
-evaluation_sample_ids <- sample(1:nrow(df), 0.2*nrow(df))
+# train_ids <- sample(1:nrow(df), 0.8*nrow(df))
+# df_train <- df[train_ids,]
+# df_test <- df[-train_ids,]
+#
+# evaluation_sample_ids <- sample(1:nrow(df), 0.2*nrow(df))
 
 set.seed(42)
 model <- ranger(Surv(time, event) ~ .,
@@ -46,7 +46,7 @@ plot(get_clustering_utilities(dendrogram, max_k = 6))
 
 
 plot_envelopes(preds, get_clusters(dendrogram, k=5), alpha = 0.5,
-               explainer$times, q = 0.1, original_pred)
+               explainer$times, q = 0.05, original_pred)
 
 
 target_envelope <- get_envelope(preds, get_clusters(dendrogram, k=5),
@@ -65,7 +65,41 @@ moc_res <- multiobjective_counterfactuals(explainer, x,
                                           tol_iter=4)
 
 analyze(moc_res)
+plot_counterfactual_predictions(moc_res)
 
+new_target_envelope <- translate_target_envelope(target_envelope)
+
+
+tb_res <- treebased_counterfactuals(explainer, x,
+                                    times = explainer$times,
+                                    target_envelope = new_target_envelope,
+                                    k_paths = 20,
+                                    verbose = TRUE)
+
+plot_counterfactual_predictions(tb_res)
+
+
+
+plot_envelopes(preds, get_clusters(dendrogram, k=5), alpha = 0.5,
+               explainer$times, q = 0.05, target_envelope$lower_bound)
+
+mu_target <- mean_time_to_survival(explainer, predictions = matrix(target_envelope$lower_bound, nrow = 1))
+mu_original <- mean_time_to_survival(explainer, predictions=original_pred)
+
+kov_res <- kovalev_method(explainer, x, seed=23, r = mu_original - mu_target, num_iter = 50)
+
+kov_res
+x
+
+plot_envelopes(preds, get_clusters(dendrogram, k=5), alpha = 0.5,
+               explainer$times, q = 0.05, predict(explainer, kov_res$z))
+
+mean_time_to_survival(explainer, predictions=predict(explainer, kov_res$z))
+
+
+results <- list()
+
+sample_for_evaluation <- sample(1:nrow(df), 0.2*nrow(df))
 
 
 
