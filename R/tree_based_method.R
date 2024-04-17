@@ -6,7 +6,7 @@ treebased_counterfactuals <- function(explainer,
                                       background_data=NULL,
                                       weights=rep(1/length(times), length(times)),
                                       target_envelope=NULL,
-                                      k_paths=2L,
+                                      k_paths=20L,
                                       max_counterfactuals=NULL,
                                       fixed_variables_indices=NULL,
                                       plausible_values=NULL,
@@ -97,7 +97,7 @@ treebased_counterfactuals <- function(explainer,
     tree <- prepare_tree(forest_structure, i)
     prediction_from_tree <- predictions[forest_structure$Tree == i,]
     dists <- distance_from_target_envelope(prediction_from_tree, target_envelope, times)
-    closest_prediction_ids <- order(dists)[1:k_paths]
+    closest_prediction_ids <- order(dists)[1:min(k_paths, length(dists))]
     path <- find_paths_to_leaves(tree, closest_prediction_ids, dists[closest_prediction_ids])
     all_paths <- rbind(all_paths, path)
   }
