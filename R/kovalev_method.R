@@ -15,8 +15,8 @@
 #'
 #' @import survex
 #' @export
-kovalev_method <- function(explainer, new_observation, num_iter=200, num_particles=1000,
-                           verbose=10, r=50, C=1e6, w=0.729, c1=1.4945, c2=1.4945, seed=NULL){
+kovalev_method <- function(explainer, new_observation, r, num_iter=200, num_particles=1000,
+                           verbose=10, C=1e6, w=0.729, c1=1.4945, c2=1.4945, seed=NULL){
   # mean value of the original observation
   mean_value <- mean_time_to_survival(explainer, new_observation)
 
@@ -30,14 +30,13 @@ kovalev_method <- function(explainer, new_observation, num_iter=200, num_particl
   # bounds of the domain
   data_range <- t(apply(z_candidates, 2, range))
 
-
   # for current candidates (explainer$data)
   # calculate distances to the original observation
   xz_distances <- euclidean_distance_loss(x, z_candidates)
   # calculate losses
   losses <- kovalev_counterfactual_loss(explainer, mean_value,
                                 rescale_to_original(z_candidates, mu, sigma),
-                                xz_distances)
+                                xz_distances, r, C)
 
   # find the best counterfactual example from current candidates
   z_closest <- z_candidates[which.min(losses), ]
@@ -45,7 +44,7 @@ kovalev_method <- function(explainer, new_observation, num_iter=200, num_particl
 
   # iteration 0 - initialization
   set.seed(seed)
-  particles <- data.frame(apply(data_range, 1, function(x) runif(num_particles, x[1], x[2])))
+  particles <- data.frame(apply(data_range, 1, function(var_range) runif(num_particles, var_range[1], var_range[2])))
   particles <- restriction_procedure(x, particles, euclidean_distance_loss(x, particles), radius_closest, data_range)
   particles[1, ] <- as.matrix(z_closest)
 
@@ -54,15 +53,16 @@ kovalev_method <- function(explainer, new_observation, num_iter=200, num_particl
 
   best_losses <- kovalev_counterfactual_loss(explainer, mean_value,
                                      rescale_to_original(best_positions, mu, sigma),
-                                     euclidean_distance_loss(x, best_positions))
+                                     euclidean_distance_loss(x, best_positions),
+                                     r, C)
   best_loss <- min(best_losses)
   best_position <- best_positions[which.min(best_losses),]
 
   for (i in 1:num_iter){
     # update velocities
-    velocities <- 0.729 * velocities +
-      1.49445 * runif(num_particles, 0, 1) * (best_positions - particles) +
-      1.49445 * runif(num_particles, 0, 1) * (as.list(best_position) - particles)
+    velocities <- w * velocities +
+      c1 * runif(num_particles, 0, 1) * (best_positions - particles) +
+      c2 * runif(num_particles, 0, 1) * (as.list(best_position) - particles)
 
     # update positions
     particles <- particles + velocities
@@ -73,7 +73,7 @@ kovalev_method <- function(explainer, new_observation, num_iter=200, num_particl
     # update best positions
     losses <- kovalev_counterfactual_loss(explainer, mean_value,
                                   rescale_to_original(particles, mu, sigma),
-                                  euclidean_distance_loss(x, particles))
+                                  euclidean_distance_loss(x, particles), r, C)
     best_positions[losses < best_losses, ] <- particles[losses < best_losses, ]
     best_losses[losses < best_losses] <- losses[losses < best_losses]
 
@@ -100,13 +100,17 @@ kovalev_method <- function(explainer, new_observation, num_iter=200, num_particl
 }
 
 
-mean_time_to_survival <- function(explainer, new_observations){
-  survival_function <- predict(explainer, new_observations, output_type = "survival")
+mean_time_to_survival <- function(explainer, new_observations=NULL, predictions=NULL){
+  if (is.null(predictions)){
+    survival_function <- predict(explainer, new_observations, output_type = "survival")
+  } else {
+    survival_function <- predictions
+  }
   n <- length(explainer$times)
   time_diffs <- diff(c(0, explainer$times))
   # for multiple observations in new_observations (matrix where rows are survival functions)
   as.numeric(0.5 * time_diffs %*%
-               t((cbind(rep(1, nrow(new_observations)), survival_function[, 1:(n-1), drop = FALSE]) +
+               t((cbind(rep(1, nrow(survival_function)), survival_function[, 1:(n-1), drop = FALSE]) +
                     survival_function)))
 }
 
