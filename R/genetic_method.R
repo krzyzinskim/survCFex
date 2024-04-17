@@ -16,7 +16,6 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
                                            data_distance_p=1,
                                            plausibility_k_neighbors=5,
                                            sbx_eta=5,
-                                           recombination_probability=0.6, # can be removed
                                            gene_recombination_probability=0.9,
                                            mutation_probability=0.8,
                                            gene_mutation_probability=0.7,
@@ -142,7 +141,7 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
                                   plausible_categorical_values,
                                   stdevs,
                                   sbx_eta,
-                                  recombination_probability, gene_recombination_probability,
+                                  gene_recombination_probability,
                                   mutation_probability, gene_mutation_probability, revert_change_probability, validity_threshold)
 
   population <- rbind(population, children)
@@ -198,7 +197,7 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
                                     plausible_categorical_values,
                                     stdevs,
                                     sbx_eta,
-                                    recombination_probability, gene_recombination_probability,
+                                    gene_recombination_probability,
                                     mutation_probability, gene_mutation_probability, revert_change_probability, validity_threshold
     )
     population <- rbind(population, children)
@@ -255,12 +254,11 @@ make_new_population <- function(population, objective_values,
                                 plausible_categorical_values,
                                 stdevs,
                                 sbx_eta,
-                                recombination_probability, gene_recombination_probability,
+                                gene_recombination_probability,
                                 mutation_probability, gene_mutation_probability, revert_change_probability, validity_threshold = NULL
 ){
   parents_indices <- binary_tournament_selection(sorting_function(objective_values, validity_threshold), population_size)
   children <- recombination(population, parents_indices,
-                            recombination_probability,
                             gene_recombination_probability,
                             numerical_variables_indices,
                             categorical_variables_indices,
@@ -369,7 +367,7 @@ binary_tournament_selection <- function(crowded_comparison_order, num_parents){
 
 
 recombination <- function(population, parents_indices,
-                          recombination_probability, gene_recombination_probability,
+                          gene_recombination_probability,
                           numerical_variables_indices, categorical_variables_indices, integer_variables_indices,
                           sbx_eta=5, lower, upper){
   n <- length(parents_indices)
