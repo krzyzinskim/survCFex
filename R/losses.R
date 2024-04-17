@@ -50,11 +50,12 @@ plausiblity_knn_loss <- function(z, background_data, data_range, categorical_var
 
 
 kovalev_counterfactual_loss <- function(explainer, x_mean_value, z_candidates, xz_distances,
-                                r = 50, C = 1e6){
+                                r = 50, C = 1e6, theta = 1){
   return (
     C * pmax(0,
-             r - abs(x_mean_value -
-                       mean_time_to_survival(explainer, z_candidates))) +
+             r -
+               theta * (mean_time_to_survival(explainer, z_candidates) -
+                          x_mean_value)) +
       xz_distances
 
   )
