@@ -447,9 +447,8 @@ mutation <- function(children, mutation_probability, gene_mutation_probability,
   for (i in seq_len(n_categorical)){
     mutation_mask <- (runif(n) < gene_mutation_probability)
     if (categorical_variables_indices[i] %in% binary_variables_indices){
-      children[rows_to_mutate, categorical_variables_indices[i]] <- ifelse(mutation_mask[rows_to_mutate],
-                                                                           1 - children[rows_to_mutate, categorical_variables_indices[i]],
-                                                                           children[rows_to_mutate, categorical_variables_indices[i]])
+      children[rows_to_mutate & mutation_mask, categorical_variables_indices[i]] <-
+        1 - children[rows_to_mutate, categorical_variables_indices[i]]
     } else{
       children[rows_to_mutate & mutation_mask, categorical_variables_indices[i]] <-
         sample(categorical_levels[[i]], n, replace = TRUE)[rows_to_mutate & mutation_mask]
@@ -519,9 +518,9 @@ initialize_population_from_background <- function(explainer, times, weights, tar
     population[, numerical_variables_indices[i]] <- pmax(lower[i], pmin(upper[i], population[, numerical_variables_indices[i]]))
   }
   for (i in seq_len(n_categorical)){
-    population[, categorical_variables_indices[i]] <- ifelse(population[, categorical_variables_indices[i]] %in% plausible_categorical_values[[i]],
-                                                             population[, categorical_variables_indices[i]],
-                                                             sample(plausible_categorical_values[[i]], population_size, replace = TRUE))
+    to_change <- !(population[, categorical_variables_indices[i]] %in% plausible_categorical_values[[i]])
+    population[to_change, categorical_variables_indices[i]] <-
+      sample(plausible_categorical_values[[i]], population_size, replace = TRUE)[to_change]
   }
 
   population <- transform_to_original_x(population, new_observation,
@@ -563,9 +562,7 @@ initialize_population_ice <- function(explainer, times, weights, target_envelope
   # clip to plausible range and levels
   for (i in seq_len(n_numerical)){
     mutation_mask <- runif(population_size) < probs[numerical_variables_indices[i]]
-    population[, numerical_variables_indices[i]] <- ifelse(mutation_mask,
-                                                           runif(population_size, lower[i], upper[i]),
-                                                           population[, numerical_variables_indices[i]])
+    population[mutation_mask, numerical_variables_indices[i]] <- runif(population_size, lower[i], upper[i])[mutation_mask]
   }
   for (i in seq_len(n_categorical)){
     mutation_mask <- runif(population_size) < probs[categorical_variables_indices[i]]
