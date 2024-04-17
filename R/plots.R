@@ -87,8 +87,8 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_exam
   )
 
   # scale min-max to [0, 1] range
-  mins <- apply(whole_population, 2, min)
-  maxs <- apply(whole_population, 2, max)
+  mins <- sapply(whole_population, min)
+  maxs <- sapply(whole_population, max)
   nan_columns <- which(maxs-mins == 0)
 
   filtered_examples <- t((t(filtered_examples) - mins) / (maxs - mins))
@@ -104,8 +104,10 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_exam
   plot_df$type <- c("original_observation", rep("counterfactual", nrow(filtered_examples)))
   plot_df$id <- 1:nrow(plot_df)
 
-  mins[!numeric_mask] <- sapply(categorical_variables_orderings, function(x) names(x)[which.min(x)])
-  maxs[!numeric_mask] <- sapply(categorical_variables_orderings, function(x) names(x)[which.max(x)])
+  if (!all(numeric_mask)) {
+    mins[!numeric_mask] <- sapply(categorical_variables_orderings, function(x) names(x)[which.min(x)])
+    maxs[!numeric_mask] <- sapply(categorical_variables_orderings, function(x) names(x)[which.max(x)])
+  }
 
   text_df <- data.frame(
     variable = rep(variables, 2),
@@ -246,7 +248,7 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
     y = original_prediction,
     type = "scatter",
     mode = "lines",
-    line = list(width = 1.5, color = "mediumvioletred"),
+    line = list(width = 3, color = "mediumvioletred"),
     hovertemplate =
       paste0("<b>Time:</b> %{x}<br>",
              "<b>", y_title, "</b> %{y:.3f}<br>",
