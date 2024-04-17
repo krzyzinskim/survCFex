@@ -168,7 +168,7 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
     if (mean(selected_indices > population_size) < 0.1){
       invalid_counter <- invalid_counter + 1
       if (invalid_counter >= tol_iter){
-        print(paste("Seach stopped due to insufficient progress in the last",
+        warning(paste("Seach stopped due to insufficient progress in the last",
                     tol_iter,
                     "iterations."))
         break
