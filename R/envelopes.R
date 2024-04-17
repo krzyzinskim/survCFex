@@ -85,3 +85,20 @@ plot_envelopes <- function(preds, clusters, times, q = 0.05, preds_to_plot = NUL
 
   p
 }
+
+
+check_target_envelope <- function(target_envelope, times){
+  # check class
+  stopifnot("target_envelope should be of class 'target_envelope'" = class(target_envelope) == "target_envelope")
+  # check if lower_bound and upper_bound are of the same length
+  stopifnot("lower_bound and upper_bound should have the same length" = length(target_envelope$lower_bound) == length(target_envelope$upper_bound))
+  # check if lower_bound and upper_bound have the same length as times
+  stopifnot("lower_bound and upper_bound should have the same length as times" = length(target_envelope$lower_bound) == length(times))
+  # check if lower_bound and upper_bound are numeric
+  stopifnot("lower_bound should be numeric" = is.numeric(target_envelope$lower_bound))
+  stopifnot("upper_bound should be numeric" = is.numeric(target_envelope$upper_bound))
+  # check if lower_bound is smaller than upper_bound
+  stopifnot("lower_bound should be smaller than upper_bound" = all(target_envelope$lower_bound <= target_envelope$upper_bound))
+  # check if type is either "survival" or "cumulative_hazard"
+  stopifnot("type should be either 'survival' or 'cumulative_hazard'" = target_envelope$type %in% c("survival", "cumulative_hazard"))
+}
