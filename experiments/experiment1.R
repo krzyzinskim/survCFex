@@ -42,9 +42,12 @@ plot_envelopes(preds, get_clusters(dendrogram, k=5),
 target_envelope_sf <- get_envelope(preds, get_clusters(dendrogram, k=5),
                                 cluster_id=5, q = 0.05)
 target_envelope_chf <- translate_target_envelope(target_envelope_sf)
+
+
 mu_target <- mean_time_to_survival(
   explainer,
-  predictions = matrix(target_envelope_sf$lower_bound, nrow = 1))
+  predictions = matrix((target_envelope_sf$lower_bound + target_envelope_sf$upper_bound) / 2,
+                       nrow = 1))
 
 
 not_in_target_cluster_ids <- which(get_clusters(dendrogram, k=5) != 5)
