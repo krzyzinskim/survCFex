@@ -6,7 +6,7 @@
 #' @param num_iter number of iterations in PSO algorithm
 #' @param num_particles number of particles in PSO algorithm
 #' @param verbose if integer, print loss every verbose iterations
-#' @param r smallest distance between mean times to events of the original and counterfactual observations
+#' @param r target difference between the mean time to survival of the counterfactual and the original observation
 #' @param C penalty parameter for the loss function (used to enforce the counterfactuality)
 #' @param w inertia weight in PSO algorithm
 #' @param c1 cognitive parameter in PSO algorithm
@@ -17,6 +17,10 @@
 #' @export
 kovalev_method <- function(explainer, new_observation, r, num_iter=200, num_particles=1000,
                            verbose=10, C=1e6, w=0.729, c1=1.4945, c2=1.4945, seed=NULL){
+  # theta
+  theta <- ifelse(r >= 0, 1, -1)
+  r <- abs(r)
+
   # mean value of the original observation
   mean_value <- mean_time_to_survival(explainer, new_observation)
 
@@ -36,11 +40,20 @@ kovalev_method <- function(explainer, new_observation, r, num_iter=200, num_part
   # calculate losses
   losses <- kovalev_counterfactual_loss(explainer, mean_value,
                                 rescale_to_original(z_candidates, mu, sigma),
-                                xz_distances, r, C)
+                                xz_distances, r, C, theta)
 
-  # find the best counterfactual example from current candidates
-  z_closest <- z_candidates[which.min(losses), ]
-  radius_closest <- sqrt(sum((x - z_closest)^2))
+  # find the best counterfactual example from current valid candidates
+  validity_mask <- r - theta * (
+    mean_time_to_survival(explainer, rescale_to_original(z_candidates, mu, sigma))
+    - mean_value) <= 0
+
+  if (sum(validity_mask) == 0){
+    radius_closest <- max(xz_distances)
+    z_closest <- z_candidates[which.max(xz_distances), ]
+  } else{
+    z_closest <- z_candidates[validity_mask, ][which.min(losses[validity_mask]), ]
+    radius_closest <- sqrt(sum((x - z_closest)^2))
+  }
 
   # iteration 0 - initialization
   set.seed(seed)
@@ -54,7 +67,7 @@ kovalev_method <- function(explainer, new_observation, r, num_iter=200, num_part
   best_losses <- kovalev_counterfactual_loss(explainer, mean_value,
                                      rescale_to_original(best_positions, mu, sigma),
                                      euclidean_distance_loss(x, best_positions),
-                                     r, C)
+                                     r, C, theta)
   best_loss <- min(best_losses)
   best_position <- best_positions[which.min(best_losses),]
 
@@ -63,7 +76,6 @@ kovalev_method <- function(explainer, new_observation, r, num_iter=200, num_part
     velocities <- w * velocities +
       c1 * runif(num_particles, 0, 1) * (best_positions - particles) +
       c2 * runif(num_particles, 0, 1) * (as.list(best_position) - particles)
-
     # update positions
     particles <- particles + velocities
     particles <- restriction_procedure(x, particles,
@@ -73,7 +85,7 @@ kovalev_method <- function(explainer, new_observation, r, num_iter=200, num_part
     # update best positions
     losses <- kovalev_counterfactual_loss(explainer, mean_value,
                                   rescale_to_original(particles, mu, sigma),
-                                  euclidean_distance_loss(x, particles), r, C)
+                                  euclidean_distance_loss(x, particles), r, C, theta)
     best_positions[losses < best_losses, ] <- particles[losses < best_losses, ]
     best_losses[losses < best_losses] <- losses[losses < best_losses]
 
@@ -95,7 +107,9 @@ kovalev_method <- function(explainer, new_observation, r, num_iter=200, num_part
   list(
     z = rescale_to_original(best_position, mu, sigma),
     loss = best_loss,
-    mean_time_to_survival = mean_time_to_survival(explainer, rescale_to_original(best_position, mu, sigma))
+    mean_time_to_survival = mean_time_to_survival(explainer, rescale_to_original(best_position, mu, sigma)),
+    counterfactual_examples = rescale_to_original(best_positions, mu, sigma),
+    objective_value = best_losses
   )
 }
 
