@@ -114,21 +114,6 @@ kovalev_method <- function(explainer, new_observation, r, num_iter=200, num_part
 }
 
 
-mean_time_to_survival <- function(explainer, new_observations=NULL, predictions=NULL){
-  if (is.null(predictions)){
-    survival_function <- predict(explainer, new_observations, output_type = "survival")
-  } else {
-    survival_function <- predictions
-  }
-  n <- length(explainer$times)
-  time_diffs <- diff(c(0, explainer$times))
-  # for multiple observations in new_observations (matrix where rows are survival functions)
-  as.numeric(0.5 * time_diffs %*%
-               t((cbind(rep(1, nrow(survival_function)), survival_function[, 1:(n-1), drop = FALSE]) +
-                    survival_function)))
-}
-
-
 restriction_procedure <- function(x, z_candidates, xz_distances, radius_closest, data_range){
   z_candidates <- as.list(x) + pmin(radius_closest, xz_distances) * (z_candidates - as.list(x)) / xz_distances
   # check if z_candidates are in the domain

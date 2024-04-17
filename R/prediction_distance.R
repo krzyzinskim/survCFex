@@ -31,3 +31,17 @@ survival_distance <- function(sf, sf_others, times, weights = rep(1/length(times
   tmp <- (sf_difference[,1:(n - 1)] * weights[1:(n-1)] + sf_difference[,2:n] * weights[2:n]) * as.list(diff(times)) / 2
   return(as.numeric(sqrt(rowSums(tmp))))
 }
+
+mean_time_to_survival <- function(explainer, new_observations=NULL, predictions=NULL){
+  if (is.null(predictions)){
+    survival_function <- predict(explainer, new_observations, output_type = "survival")
+  } else {
+    survival_function <- predictions
+  }
+  n <- length(explainer$times)
+  time_diffs <- diff(c(0, explainer$times))
+  # for multiple observations in new_observations (matrix where rows are survival functions)
+  as.numeric(0.5 * time_diffs %*%
+               t((cbind(rep(1, nrow(survival_function)), survival_function[, 1:(n-1), drop = FALSE]) +
+                    survival_function)))
+}
