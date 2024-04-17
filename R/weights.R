@@ -1,23 +1,25 @@
 #' @export
-survival_weights <- function(explainer, times, p=0, q=0){
+survival_weights <- function(explainer, times, p=0, q=0, add_mean = TRUE){
   if (p == 0 & q == 0){
     weights <- rep(1, length(times))
   } else {
     km <- survival::survfit(explainer$y ~ 1)
     surv_estimator <- stepfun(km$time, c(1, km$surv))
-    weights <- (surv_estimator(times)^p) * ((1 - surv_estimator(times))^q)
+    sf <- surv_estimator(times)
+    weights <- (sf^p) * ((1 - sf)^q)
+    weights <- weights + mean(weights) * add_mean
   }
   return(weights / sum(weights))
 }
 
 
 #' @export
-plot_survival_weights <- function(explainer, times, p=0, q=0){
+plot_survival_weights <- function(explainer, times, p=0, q=0, add_mean = TRUE){
   stopifnot(length(p) == length(q))
   weights_to_plot_df <- data.frame()
 
   for (i in 1:length(p)) {
-    weights <- survival_weights(explainer, times, p[i], q[i])
+    weights <- survival_weights(explainer, times, p[i], q[i], add_mean)
     weights_df <- data.frame(time = times, weight = weights, params = paste0("p=", p[i], ", q=", q[i]))
     weights_to_plot_df <- rbind(weights_to_plot_df, weights_df)
   }
