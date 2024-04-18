@@ -96,9 +96,14 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
       integer_variables_indices <- setdiff(union(integer_variables_indices, additional_integer_indices),
                                            categorical_variables_indices)
   }
+  categorical_variables_indices <- sort(categorical_variables_indices)
+  numerical_variables_indices <- sort(numerical_variables_indices)
+  integer_variables_indices <- sort(integer_variables_indices)
+  binary_variables_indices <- sort(binary_variables_indices)
+  fixed_variables_indices <- sort(fixed_variables_indices)
+
   stopifnot("numerical_variable_indices and categorical_variable_indices must cover all columns" =
               length(unique(c(numerical_variables_indices, categorical_variables_indices))) == p)
-
   data_range <- apply(background_data[numerical_variables_indices], 2, range)
 
   if (is.null(plausible_data_range)){
@@ -570,7 +575,6 @@ initialize_population_ice <- function(explainer, times, weights, target_envelope
     population[mutation_mask, categorical_variables_indices[i]] <- tmp[mutation_mask]
   }
   population[, integer_variables_indices] <- round(population[, integer_variables_indices])
-
   population <- transform_to_original_x(population, new_observation,
                                         fixed_variables_indices, 0.3)
   row.names(population) <- NULL
