@@ -7,6 +7,9 @@ treebased_counterfactuals <- function(explainer,
                                       weights=rep(1/length(times), length(times)),
                                       target_envelope=NULL,
                                       k_paths=20L,
+                                      p_paths=3L,
+                                      max_tries=200,
+                                      step=1,
                                       max_counterfactuals=NULL,
                                       fixed_variables_indices=NULL,
                                       plausible_values=NULL,
@@ -97,16 +100,32 @@ treebased_counterfactuals <- function(explainer,
     tree <- prepare_tree(forest_structure, i)
     prediction_from_tree <- predictions[forest_structure$Tree == i,]
     dists <- distance_from_target_envelope(prediction_from_tree, target_envelope, times)
-    closest_prediction_ids <- order(dists)[1:min(k_paths, length(dists))]
+    closest_prediction_ids <- order(dists)[1:min(k_paths, sum(!is.na(dists)))]
     path <- find_paths_to_leaves(tree, closest_prediction_ids, dists[closest_prediction_ids])
     all_paths <- rbind(all_paths, path)
   }
 
-  new_instances <- build_new_instances(new_observation,
-                                       n_trees,
-                                       all_paths,
-                                       possible_values, plausible_mask,
-                                       fixed_variables_names, ordered_variables_names)
+  all_paths_ids <- unique(all_paths[c("Tree", "Path")])
+
+  new_instances <- data.frame()
+  for (i in seq_len(max_tries)){
+    which_paths <- sample(nrow(all_paths_ids), p_paths)
+    selected_paths <- all_paths[all_paths$Tree %in% all_paths_ids[which_paths, "Tree"] &
+                                  all_paths$Path %in% all_paths_ids[which_paths, "Path"],]
+    selected_paths <- selected_paths[order(-selected_paths$Validity),]
+    x <- new_observation
+    for (j in seq_len(p_paths)){
+      tree_id <- all_paths_ids[which_paths[j], "Tree"]
+      path_id <- all_paths_ids[which_paths[j], "Path"]
+      path <- selected_paths[selected_paths$Tree == tree_id & selected_paths$Path == path_id,]
+      x <- build_new_instance_from_path(x, path,
+                                        possible_values, plausible_mask,
+                                        fixed_variables_names, ordered_variables_names,
+                                        step)
+    }
+    new_instances <- rbind(new_instances, x)
+  }
+
   new_instances <- new_instances[!duplicated(new_instances),]
 
   # set the same classes as in background_data
@@ -197,6 +216,7 @@ find_paths_to_leaves <- function(tree, leaves_ids, validities){
     path <- tree[path_nodes,]
     path$Decision <- decisions
     path$Validity <- validities[i]
+    path$CoverChange <- c(abs(diff(path$Cover)), NA)/path$Cover
     path$Path <- i
     rownames(path) <- NULL
     paths <- rbind(paths, path)
@@ -207,7 +227,8 @@ find_paths_to_leaves <- function(tree, leaves_ids, validities){
 
 build_new_instances <- function(observation, n_trees, paths,
                                 possible_values, plausible_mask,
-                                fixed_variables_names, ordered_variables_names){
+                                fixed_variables_names, ordered_variables_names,
+                                step){
   instances <- data.frame()
   for (i in seq_len(n_trees)-1){
     tree_paths <- paths[paths$Tree == i,]
@@ -215,7 +236,8 @@ build_new_instances <- function(observation, n_trees, paths,
       path <- tree_paths[tree_paths$Path == j,]
       x <- build_new_instance_from_path(observation, path,
                                         possible_values, plausible_mask,
-                                        fixed_variables_names, ordered_variables_names)
+                                        fixed_variables_names, ordered_variables_names,
+                                        step)
       instances <- rbind(instances, x)
     }
   }
@@ -225,7 +247,8 @@ build_new_instances <- function(observation, n_trees, paths,
 
 build_new_instance_from_path <- function(observation, path,
                                          possible_values, plausible_mask,
-                                         fixed_variables_names, ordered_variables_names){
+                                         fixed_variables_names, ordered_variables_names,
+                                         step){
   x <- observation
   for (j in seq_len(nrow(path)-1)){
     variable_name <- path$Feature[j]
@@ -235,14 +258,16 @@ build_new_instance_from_path <- function(observation, path,
                                                  path$Split[j], path$Decision[j],
                                                  possible_values[[variable_name]],
                                                  plausible_mask[[variable_name]],
-                                                 variable_name %in% ordered_variables_names)
+                                                 variable_name %in% ordered_variables_names,
+                                                 step)
   }
   x
 }
 
 get_closest_proper_value <- function(variable_name, current_value,
                                      split_value, decision_type,
-                                     possible_values, plausible_mask, is_ordered){
+                                     possible_values, plausible_mask,
+                                     is_ordered, step=1){
   look_for_leq <- decision_type == "<="
 
   if (!is_ordered){
@@ -267,9 +292,10 @@ get_closest_proper_value <- function(variable_name, current_value,
   }
   if (is.null(tmp) | length(tmp) == 0)
     return(current_value) # if there are no proper values - return the current value
+  n_possible <- length(tmp)
   if (look_for_leq){
-    return(tmp[length(tmp)]) # return the maximal proper value - closest to split_value
+    return(tmp[max(1, n_possible - step + 1)]) # return the maximal proper value - closest to split_value
   } else {
-    return(tmp[1]) # return the minimal proper value - closest to split_value
+    return(tmp[min(step, n_possible)]) # return the minimal proper value - closest to split_value
   }
 }
