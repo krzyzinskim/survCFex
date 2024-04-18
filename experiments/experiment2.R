@@ -59,7 +59,7 @@ for (i in 1:k) {
     moc_start <- Sys.time()
     moc_results[[(i-1) * l + j]] <- multiobjective_counterfactuals(explainer, obs,
                                                                times = explainer$times,
-                                                               target_envelope = target_envelope_chf,
+                                                               target_envelope = target_envelope_sf,
                                                                seed = 123,
                                                                population_size = pop_sizes[j],
                                                                max_generations = 100,
