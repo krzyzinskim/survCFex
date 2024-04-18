@@ -1,6 +1,6 @@
 #' @import shiny
 #' @export
-analyze <- function(counterfactual_explanations) {
+analyze <- function(counterfactual_explanations, digits=2) {
   # Check data structure
   if (!inherits(counterfactual_explanations, "counterfactual_explanations") |
       !is.data.frame(counterfactual_explanations$original_observation) |
@@ -8,9 +8,11 @@ analyze <- function(counterfactual_explanations) {
       !is.data.frame(counterfactual_explanations$objective_values)) {
     stop("Invalid data structure. Please provide an object of class 'counterfactual_explanations' with the following components: 'original_observation', 'counterfactual_examples', 'objective_values'.")
   }
-
   loss_functions <- names(counterfactual_explanations$objective_values)
   type <- class(counterfactual_explanations)[2]
+
+  num_ids <- which(sapply(counterfactual_explanations$counterfactual_examples, function(x) {is.numeric(x)}))
+  to_round_ids <- num_ids[sapply(num_ids, function(i) {any(counterfactual_explanations$counterfactual_examples[,i] %% 1 != 0)})]
 
   # Define UI elements
   ui <- fluidPage(
@@ -25,10 +27,10 @@ analyze <- function(counterfactual_explanations) {
             paste0(loss, "_slider"),
             h5(loss),
             min = 0,
-            max = ceiling(max(counterfactual_explanations$objective_values[, loss]) * 100) / 100,
-            value = ceiling(max(counterfactual_explanations$objective_values[, loss]) * 100) / 100,
-            step = ifelse(loss == "sparsity", 1, 0.01),
-            round = ifelse(loss == "sparsity", TRUE, 2)
+            max = ceiling(max(counterfactual_explanations$objective_values[, loss]) * 10^digits) / 10^digits,
+            value = ceiling(max(counterfactual_explanations$objective_values[, loss]) * 10^digits) / 10^digits,
+            step = ifelse(loss == "sparsity", 1, 10^(-digits)),
+            round = ifelse(loss == "sparsity", TRUE, digits)
           )
         }),
         width = 3
@@ -67,14 +69,14 @@ analyze <- function(counterfactual_explanations) {
       filtered_population <- cbind(counterfactual_explanations$counterfactual_examples, counterfactual_explanations$objective_values)
       for (loss in loss_functions) {
         filtered_population <- filtered_population[filtered_population[, loss] <=
-                                                     input[[paste0(loss, "_slider")]], ]
+                                                     input[[paste0(loss, "_slider")]],,drop=FALSE]
       }
       return(filtered_population)
     })
 
     filtered_predictions <- reactive({
       which_rows <- rownames(counterfactual_explanations$counterfactual_examples) %in% rownames(filtered_data())
-      filtered_preds <- counterfactual_explanations$predictions[which_rows,]
+      filtered_preds <- counterfactual_explanations$predictions[which_rows,,drop=FALSE]
       return(filtered_preds)
     })
 
@@ -84,9 +86,13 @@ analyze <- function(counterfactual_explanations) {
         options = list(ordering = FALSE, paging = FALSE, dom = 't'),
         rownames = FALSE
       ) |>
+        DT::formatRound(
+          columns = to_round_ids,
+          digits = digits
+        ) |>
         DT::formatStyle(
           columns = 1:ncol(counterfactual_explanations$original_observation),
-          backgroundColor = 'ghostwhite'
+          backgroundColor = 'ghostwhite',
         )
     })
 
@@ -113,15 +119,19 @@ analyze <- function(counterfactual_explanations) {
       ) |>
         DT::formatRound(
           columns = c("validity", "similarity", "plausibility"),
-          digits = 3
+          digits = digits
         ) |>
         DT::formatRound(
           columns = "sparsity",
           digits = 0
         ) |>
+        DT::formatRound(
+          columns = to_round_ids,
+          digits = digits
+        ) |>
         DT::formatStyle(
           columns = 1:ncol(counterfactual_explanations$counterfactual_examples),
-          backgroundColor = 'ghostwhite'
+          backgroundColor = 'ghostwhite',
         ) |>
         DT::formatStyle(
           columns = (ncol(counterfactual_explanations$counterfactual_examples) + 1):ncol(filtered_data()),
