@@ -87,7 +87,7 @@ for (i in seq_len(k)){
                                                times = explainer$times,
                                                target_envelope = target_envelope_chf,
                                                max_counterfactuals = 40,
-                                               k_paths = 20,
+                                               paths_per_tree = 20,
                                                verbose = FALSE)
   tb_time[i] <- as.numeric(Sys.time() - tb_start, units = "secs")
 
