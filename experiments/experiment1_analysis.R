@@ -258,11 +258,8 @@ ggsave("experiments/plots/exp1_nondomination.pdf", dpi=500,
 
 
 # COVERAGE RATES
-
-
-
-moc_obj <- experiment1_results$moc_results[[1]]$objective_values
-tb_obj <- experiment1_results$tb_results[[1]]$objective_values
+moc_obj <- experiment1_results$moc_results[[3]]$objective_values
+tb_obj <- experiment1_results$tb_results[[3]]$objective_values
 crowded_comparison_order <- get_crowded_comparison_order(tb_obj)
 tb_obj <- tb_obj[select_population_indices(crowded_comparison_order, 40),]
 
@@ -273,10 +270,10 @@ mean(ecr::doNondominatedSorting(as.matrix(t(moc_tb_obj)))$ranks[1:40] != 1)
 
 
 kov_obj <- calculate_objective_values(explainer$data, explainer$times, experiment1_results$weights,
-                                      experiment1_results$kov_results[[1]]$original_observation,
-                                      experiment1_results$kov_results[[1]]$counterfactual_examples,
-                                      experiment1_results$kov_results[[1]]$original_prediction,
-                                      experiment1_results$kov_results[[1]]$predictions,
+                                      experiment1_results$kov_results[[3]]$original_observation,
+                                      experiment1_results$kov_results[[3]]$counterfactual_examples,
+                                      experiment1_results$kov_results[[3]]$original_prediction,
+                                      experiment1_results$kov_results[[3]]$predictions,
                                       NULL, experiment1_results$target_envelope_sf,
                                       data_range, NULL,
                                       1, 5)
@@ -289,6 +286,88 @@ mean(ecr::doNondominatedSorting(as.matrix(t(moc_kov_obj)))$ranks[41:80] != 1)
 mean(ecr::doNondominatedSorting(as.matrix(t(moc_kov_obj)))$ranks[1:40] != 1)
 
 
+plot(explainer$data$x3, explainer$data$x4,
+     ylim = c(15.5, 23.5), xlim = c(8.5, 13.5),
+     col = scales::alpha("black", 0.2), pch=16)
 
 
+points(experiment1_results$moc_results[[3]]$counterfactual_examples$x3,
+      experiment1_results$moc_results[[3]]$counterfactual_examples$x4,
+      pch=16)
+
+points(experiment1_results$tb_results[[3]]$counterfactual_examples$x3,
+       experiment1_results$tb_results[[3]]$counterfactual_examples$x4,
+       col="darkgreen", pch=16)
+
+points(experiment1_results$kov_results[[3]]$counterfactual_examples[,3],
+       experiment1_results$kov_results[[3]]$counterfactual_examples[,4],
+       col="blue", pch=16)
+
+points(experiment1_results$kov_results[[3]]$original_observation[3],
+       experiment1_results$kov_results[[3]]$original_observation[4],
+       col="red", pch=4)
+
+
+
+
+evaluation_sample <- explainer$data[experiment1_results$not_in_target_cluster_ids,][experiment1_results$sample_for_evaluation,]
+which_has_1 <- which(evaluation_sample$x1 == 1)
+which_has_0 <- which(evaluation_sample$x1 == 0)
+mask_ones <- evaluation_sample$x1 == 1
+
+moc_x1 <- lapply(experiment1_results$moc_results,
+       function(res){
+         res$counterfactual_examples$x1
+       })
+
+
+tb_x1 <- lapply(experiment1_results$tb_results,
+                     function(res){
+                       crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
+                       sel_ces <- select_population_indices(crowded_comparison_order, 40)
+                       ces <- res$counterfactual_examples[sel_ces,]
+                       ces$x1
+                     })
+
+kov_x1 <- lapply(experiment1_results$kov_results,
+                      function(res){
+                        raw_obj <- calculate_objective_values(explainer$data, explainer$times, experiment1_results$weights,
+                                                              res$original_observation, res$counterfactual_examples,
+                                                              res$original_prediction, res$predictions,
+                                                              NULL, experiment1_results$target_envelope_sf,
+                                                              data_range, NULL,
+                                                              1, 5)
+                        crowded_comparison_order <- get_crowded_comparison_order(raw_obj)
+                        ces <- res$counterfactual_examples[select_population_indices(crowded_comparison_order, 40),]
+                        ces[,1]
+                      })
+
+
+
+moc_ones <- sapply(moc_x1, function(x) sum(x == 1))
+tb_ones <- sapply(tb_x1, function(x) sum(x == 1))
+kov_ones_real <- sapply(kov_x1, function(x) sum(x == 1))
+kov_ones <- sapply(kov_x1, function(x) sum(abs(x-1)<abs(x)))
+
+table(moc_ones == 40, mask_ones)
+table(tb_ones == 40, mask_ones)
+table(kov_ones == 40, mask_ones)
+
+
+# table(moc_ones == 40, mask_ones)
+# mask_ones
+# FALSE TRUE
+# TRUE    27   23
+#
+# table(tb_ones == 40, mask_ones)
+# mask_ones
+# FALSE TRUE
+# FALSE     2    2
+# TRUE     25   21
+#
+# table(kov_ones == 40, mask_ones)
+# mask_ones
+# FALSE TRUE
+# FALSE    27    5
+# TRUE      0   18
 
