@@ -515,7 +515,7 @@ initialize_population_from_background <- function(explainer, times, weights, tar
   n_categorical <- length(categorical_variables_indices)
 
   if (population_size > nrow(background_data)){
-    stop("Population size cannot be larger than the background data size")
+    population <- background_data
   } else{
     population <- background_data[sample(1:nrow(background_data), population_size, replace = FALSE),]
   }
