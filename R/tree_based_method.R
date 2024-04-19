@@ -6,14 +6,15 @@ treebased_counterfactuals <- function(explainer,
                                       background_data=NULL,
                                       weights=rep(1/length(times), length(times)),
                                       target_envelope=NULL,
-                                      k_paths=20L,
-                                      p_paths=3L,
+                                      paths_per_tree=20L,
+                                      paths_per_counterfactual=1L,
                                       max_tries=200,
                                       step=1,
                                       max_counterfactuals=NULL,
                                       fixed_variables_indices=NULL,
                                       plausible_values=NULL,
-                                      verbose=FALSE){
+                                      verbose=FALSE,
+                                      seed=NULL){
   ### CHECKS
 
   p <- ncol(new_observation)
@@ -41,10 +42,10 @@ treebased_counterfactuals <- function(explainer,
   stopifnot("background_data must be a data frame" = is.data.frame(background_data))
   stopifnot("Number of columns of background_data must be equal to p" = ncol(background_data) == p)
   stopifnot("Number of rows of background_data must be greater than 0" = nrow(background_data) > 0)
-  stopifnot("k_paths must be positive" = k_paths > 0)
+  stopifnot("paths_per_tree must be positive" = paths_per_tree > 0)
   num_trees <- explainer$model$num.trees
   if (is.null(max_counterfactuals)){
-    max_counterfactuals <- min(40, num_trees * k_paths)
+    max_counterfactuals <- min(40, num_trees * paths_per_tree)
   }
   stopifnot("max_counterfactuals must be positive" = max_counterfactuals > 0)
 
@@ -90,8 +91,17 @@ treebased_counterfactuals <- function(explainer,
   n_trees <- length(unique(forest_structure$Tree))
   predictions <- predictions * n_trees # because treeshap assumes that the prediction is the sum of predictions from all trees
 
+  # check if the forest is deep enough to find counterfactuals from single paths
+  max_depth <- ceiling(log2(max(forest_structure$Node)))
+  p <- ncol(new_observation)
+  if (max_depth < p / paths_per_counterfactual){
+    warning("The trees in the forest may be too shallow to find counterfactuals from single paths.
+Consider increasing the paths_per_counterfactual parameter.")
+  }
+
   all_paths <- data.frame()
   if (verbose){
+    cat("Calculating paths to leaves...\n")
     pb <- txtProgressBar(min = 0, max = n_trees-1, initial = 0, style = 3)
   }
   for (i in seq_len(n_trees)-1){
@@ -100,30 +110,30 @@ treebased_counterfactuals <- function(explainer,
     tree <- prepare_tree(forest_structure, i)
     prediction_from_tree <- predictions[forest_structure$Tree == i,]
     dists <- distance_from_target_envelope(prediction_from_tree, target_envelope, times)
-    closest_prediction_ids <- order(dists)[1:min(k_paths, sum(!is.na(dists)))]
+    closest_prediction_ids <- order(dists)[1:min(paths_per_tree, sum(!is.na(dists)))]
     path <- find_paths_to_leaves(tree, closest_prediction_ids, dists[closest_prediction_ids])
     all_paths <- rbind(all_paths, path)
   }
+  if (verbose)
+    close(pb)
 
-  all_paths_ids <- unique(all_paths[c("Tree", "Path")])
+  if (verbose)
+    cat("\nCalculating counterfactuals...\n")
 
-  new_instances <- data.frame()
-  for (i in seq_len(max_tries)){
-    which_paths <- sample(nrow(all_paths_ids), p_paths)
-    selected_paths <- all_paths[all_paths$Tree %in% all_paths_ids[which_paths, "Tree"] &
-                                  all_paths$Path %in% all_paths_ids[which_paths, "Path"],]
-    selected_paths <- selected_paths[order(-selected_paths$Validity),]
-    x <- new_observation
-    for (j in seq_len(p_paths)){
-      tree_id <- all_paths_ids[which_paths[j], "Tree"]
-      path_id <- all_paths_ids[which_paths[j], "Path"]
-      path <- selected_paths[selected_paths$Tree == tree_id & selected_paths$Path == path_id,]
-      x <- build_new_instance_from_path(x, path,
-                                        possible_values, plausible_mask,
-                                        fixed_variables_names, ordered_variables_names,
-                                        step)
+  if (paths_per_counterfactual == 1){
+    new_instances <- build_new_instances_deterministicly(new_observation, n_trees, all_paths,
+                                                         possible_values, plausible_mask,
+                                                         fixed_variables_names, ordered_variables_names,
+                                                         step, verbose)
+  } else {
+    if (!is.null(seed)){
+      set.seed(seed)
     }
-    new_instances <- rbind(new_instances, x)
+    all_paths_ids <- unique(all_paths[c("Tree", "Path")])
+    new_instances <- build_new_instances_randomly(new_observation, all_paths, all_paths_ids,
+                                                  possible_values, plausible_mask,
+                                                  fixed_variables_names, ordered_variables_names,
+                                                  step, paths_per_counterfactual, max_tries, verbose)
   }
 
   new_instances <- new_instances[!duplicated(new_instances),]
@@ -165,9 +175,6 @@ treebased_counterfactuals <- function(explainer,
     ))
 
   original_prediction <- predict(explainer, new_observation, times = times, output_type = "chf")
-
-  if (verbose)
-    close(pb)
 
   result = list(
     original_observation = new_observation,
@@ -225,11 +232,14 @@ find_paths_to_leaves <- function(tree, leaves_ids, validities){
 }
 
 
-build_new_instances <- function(observation, n_trees, paths,
+build_new_instances_deterministicly <- function(observation, n_trees, paths,
                                 possible_values, plausible_mask,
                                 fixed_variables_names, ordered_variables_names,
-                                step){
-  instances <- data.frame()
+                                step, verbose){
+  if (verbose){
+    pb <- txtProgressBar(min = 0, max = n_trees-1, initial = 0, style = 3)
+  }
+  new_instances <- data.frame()
   for (i in seq_len(n_trees)-1){
     tree_paths <- paths[paths$Tree == i,]
     for (j in seq_len(length(unique(tree_paths$Path)))){
@@ -238,10 +248,46 @@ build_new_instances <- function(observation, n_trees, paths,
                                         possible_values, plausible_mask,
                                         fixed_variables_names, ordered_variables_names,
                                         step)
-      instances <- rbind(instances, x)
+      new_instances <- rbind(new_instances, x)
     }
+    if (verbose)
+      setTxtProgressBar(pb, i)
   }
-  instances
+  if (verbose)
+    close(pb)
+  new_instances
+}
+
+build_new_instances_randomly <- function(new_observation, all_paths, all_paths_ids,
+                                        possible_values, plausible_mask,
+                                        fixed_variables_names, ordered_variables_names,
+                                        step, paths_per_counterfactual, max_tries,
+                                        verbose){
+  if (verbose){
+    pb <- txtProgressBar(min = 1, max = max_tries, initial = 0, style = 3)
+  }
+  new_instances <- data.frame()
+  for (i in seq_len(max_tries)){
+    which_paths <- sample(nrow(all_paths_ids), paths_per_counterfactual)
+    selected_paths <- all_paths[all_paths$Tree %in% all_paths_ids[which_paths, "Tree"] &
+                                  all_paths$Path %in% all_paths_ids[which_paths, "Path"],]
+    x <- new_observation
+    for (j in seq_len(paths_per_counterfactual)){
+      tree_id <- all_paths_ids[which_paths[j], "Tree"]
+      path_id <- all_paths_ids[which_paths[j], "Path"]
+      path <- selected_paths[selected_paths$Tree == tree_id & selected_paths$Path == path_id,]
+      x <- build_new_instance_from_path(x, path,
+                                        possible_values, plausible_mask,
+                                        fixed_variables_names, ordered_variables_names,
+                                        step)
+    }
+    new_instances <- rbind(new_instances, x)
+    if (verbose)
+      setTxtProgressBar(pb, i)
+  }
+  if (verbose)
+    close(pb)
+  new_instances
 }
 
 
