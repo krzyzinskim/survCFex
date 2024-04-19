@@ -334,7 +334,7 @@ get_crowded_comparison_order <- function(obj, validity_threshold = NULL){
     validity_threshold <- max(obj$validity) + 1
   } else if (is.function(validity_threshold)){
     validity_threshold <- validity_threshold(obj$validity)
-  } else if (validity_threshold == "auto"){
+  } else if (validity_threshold == "median"){
     validity_threshold <- median(obj$validity)
   }
   # move invalid solutions to the end (starting from the least invalid)
