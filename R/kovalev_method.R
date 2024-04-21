@@ -30,6 +30,7 @@ kovalev_method <- function(explainer, new_observation, r, num_iter=200, num_part
   sigma <- apply(z_candidates, 2, sd)
   z_candidates <- data.frame(scale(z_candidates, center = mu, scale = sigma))
   x <- scale(new_observation, center = mu, scale = sigma)
+  colnames(z_candidates) <- colnames(explainer$data)
 
   # bounds of the domain
   data_range <- t(apply(z_candidates, 2, range))
@@ -84,6 +85,9 @@ kovalev_method <- function(explainer, new_observation, r, num_iter=200, num_part
     particles <- restriction_procedure(x, particles,
                                        euclidean_distance_loss(x, particles),
                                        radius_closest, data_range)
+
+    particles <- as.data.frame(particles)
+    colnames(particles) <- colnames(explainer$data)
 
     # update best positions
     losses <- kovalev_counterfactual_loss(explainer, mean_value,
@@ -154,5 +158,7 @@ restriction_procedure <- function(x, z_candidates, xz_distances, radius_closest,
 }
 
 rescale_to_original <- function(x, mu, sigma){
-  t(t(x) * sigma + mu)
+  tmp <- data.frame(t(t(x) * sigma + mu))
+  colnames(tmp) <- colnames(x)
+  tmp
 }
