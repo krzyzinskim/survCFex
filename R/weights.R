@@ -1,5 +1,5 @@
 #' @export
-survival_weights <- function(explainer, times, p=0, q=0, add_mean = TRUE){
+survival_weights <- function(explainer, times, p=0, q=0, add_mean = FALSE){
   if (p == 0 & q == 0){
     weights <- rep(1, length(times))
   } else {
@@ -9,12 +9,12 @@ survival_weights <- function(explainer, times, p=0, q=0, add_mean = TRUE){
     weights <- (sf^p) * ((1 - sf)^q)
     weights <- weights + mean(weights) * add_mean
   }
-  return(weights / sum(weights))
+  return(weights)
 }
 
 
 #' @export
-plot_survival_weights <- function(explainer, times, p=0, q=0, add_mean = TRUE){
+plot_survival_weights <- function(explainer, times, p=0, q=0, add_mean = FALSE){
   stopifnot(length(p) == length(q))
   weights_to_plot_df <- data.frame()
 

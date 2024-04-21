@@ -29,7 +29,9 @@ survival_distance <- function(sf, sf_others, times, weights = rep(1/length(times
   n <- length(times)
   weights <- as.list(weights)
   tmp <- (sf_difference[,1:(n - 1)] * weights[1:(n-1)] + sf_difference[,2:n] * weights[2:n]) * as.list(diff(times)) / 2
-  return(as.numeric(sqrt(rowSums(tmp))))
+  weights <- as.numeric(weights)
+  weights_integrated <- sum((weights[1:(n-1)] + weights[2:n]) / 2 * diff(times))
+  return(as.numeric(sqrt(rowSums(tmp)) / weights_integrated))
 }
 
 mean_time_to_survival <- function(explainer, new_observations=NULL, predictions=NULL){
