@@ -2,7 +2,7 @@
 #' @export
 multiobjective_counterfactuals <- function(explainer, new_observation, times,
                                            background_data=NULL,
-                                           weights=rep(1/length(times), length(times)),
+                                           weights=rep(1, length(times)),
                                            target_change=NULL,
                                            target_envelope=NULL,
                                            fixed_variables_indices=NULL,
