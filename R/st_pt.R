@@ -2,10 +2,10 @@
 #' @export
 st_pt <- function(explainer,
                 new_observation,
-                times,
+                target_prediction_band=NULL,
+                weights=survival_weights(explainer, p=0, q=0),
+                times=explainer$times,
                 background_data=NULL,
-                weights=rep(1, length(times)),
-                target_envelope=NULL,
                 paths_per_tree=20L,
                 paths_per_counterfactual=1L,
                 max_tries=200,
@@ -16,11 +16,12 @@ st_pt <- function(explainer,
                 verbose=FALSE,
                 seed=NULL){
   ### CHECKS
-
   p <- ncol(new_observation)
+  times <- explainer$times
+
   stopifnot("Explained model must be a ranger model" = class(explainer$model) == "ranger")
   stopifnot("Weights must be a numeric vector with non-negative values and sum(weights) > 0" = is.numeric(weights) & all(weights >= 0) & sum(weights) > 0)
-  stopifnot("target_envelope must be provided" = !is.null(target_envelope))
+  stopifnot("target_prediction_band must be provided" = !is.null(target_prediction_band))
   stopifnot("Length of times and weights must be the same" = length(times) == length(weights))
   stopifnot("fixed_variables_indices must be a vector of positive integers" =
               is.null(fixed_variables_indices) |
@@ -109,7 +110,7 @@ Consider increasing the paths_per_counterfactual parameter.")
       setTxtProgressBar(pb, i)
     tree <- prepare_tree(forest_structure, i)
     prediction_from_tree <- predictions[forest_structure$Tree == i,]
-    dists <- distance_from_target_envelope(prediction_from_tree, target_envelope, times)
+    dists <- distance_from_target_prediction_band(prediction_from_tree, target_prediction_band, times)
     closest_prediction_ids <- order(dists)[1:min(paths_per_tree, sum(!is.na(dists)))]
     path <- find_paths_to_leaves(tree, closest_prediction_ids, dists[closest_prediction_ids])
     all_paths <- rbind(all_paths, path)
@@ -146,7 +147,7 @@ Consider increasing the paths_per_counterfactual parameter.")
   }
 
   counterfactual_predictions <- predict(explainer, new_instances, output_type = "chf")
-  dist_res <- distance_from_target_envelope(counterfactual_predictions, target_envelope, times)
+  dist_res <- distance_from_target_prediction_band(counterfactual_predictions, target_prediction_band, times)
   n_valid <- sum(dist_res == 0)
 
 
@@ -155,7 +156,7 @@ Consider increasing the paths_per_counterfactual parameter.")
     which_to_return_mask <- dist_res == 0
   } else{
     if (n_valid == 0){
-      warning("No valid counterfactuals found. Try to increase the number of checked paths or change the target envelope.")
+      warning("No valid counterfactuals found. Try to increase the number of checked paths or change the target prediction band.")
     }
     which_to_return_mask <- order(dist_res) <= min(max_counterfactuals, nrow(new_instances))
   }
@@ -178,7 +179,7 @@ Consider increasing the paths_per_counterfactual parameter.")
 
   result = list(
     original_observation = new_observation,
-    target_envelope = target_envelope,
+    target_prediction_band = target_prediction_band,
     times = times,
     original_prediction = original_prediction,
     predictions = counterfactual_predictions,

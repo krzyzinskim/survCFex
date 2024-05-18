@@ -1,11 +1,11 @@
 #' @export
-distance_from_target_envelope <- function(sf, envelope, times, weights = rep(1/length(times), length(times))){
+distance_from_target_prediction_band <- function(sf, prediction_band, times, weights = rep(1/length(times), length(times))){
   if (is.vector(sf)){
     sf <- matrix(sf, nrow = 1)
   }
   sf <- as.data.frame(sf)
-  sf_difference <- pmax(sf - as.list(envelope$upper_bound),
-                        as.list(envelope$lower_bound) - sf,
+  sf_difference <- pmax(sf - as.list(prediction_band$upper_bound),
+                        as.list(prediction_band$lower_bound) - sf,
                         data.frame(matrix(0, nrow = nrow(sf), ncol = ncol(sf))))
   return(abs(survival_distance(0, sf_difference, times, weights)))
 }

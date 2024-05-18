@@ -2,8 +2,9 @@
 #' @export
 surv_moc <- function(explainer,
                    new_observation,
-                   weights=survival_weights(explainer, p=0, q=0),
                    target_prediction_band=NULL,
+                   weights=survival_weights(explainer, p=0, q=0),
+                   times=explainer$times,
                    background_data=NULL,
                    target_change=NULL,
                    fixed_variables_indices=NULL,
@@ -29,7 +30,6 @@ surv_moc <- function(explainer,
                    seed=NULL){
 
   p <- ncol(new_observation)
-  times <- explainer$times
   stopifnot("Weights must be a numeric vector with non-negative values and sum(weights) > 0" = is.numeric(weights) & all(weights >= 0) & sum(weights) > 0)
   stopifnot("Either target_change or target_prediction_band must be provided" = !is.null(target_change) | !is.null(target_prediction_band))
   check_target_prediction_band(target_prediction_band, times)

@@ -22,17 +22,17 @@ get_prediction_band <- function(x, clusters, cluster_id, lambda = 0.05, output_t
 #' @export
 translate_target_prediction_band <- function(target_prediction_band){
   stopifnot("target_prediction_band should be of class 'target_prediction_band'" = class(target_prediction_band) == "target_prediction_band")
-  stopifnot("target_prediction_band should have a type" = "type" %in% names(target_prediction_band))
-  if (target_prediction_band$type == "survival"){
+  stopifnot("target_prediction_band should have a output_type" = "output_type" %in% names(target_prediction_band))
+  if (target_prediction_band$output_type == "survival"){
     new_target_prediction_band <- target_prediction_band
     new_target_prediction_band$upper_bound <- translate_survival_to_cumulative_hazard(target_prediction_band$lower_bound)
     new_target_prediction_band$lower_bound <- translate_survival_to_cumulative_hazard(target_prediction_band$upper_bound)
-    new_target_prediction_band$type <- "cumulative_hazard"
+    new_target_prediction_band$output_type <- "cumulative_hazard"
   } else {
     new_target_prediction_band <- target_prediction_band
     new_target_prediction_band$upper_bound <- translate_cumulative_hazard_to_survival(target_prediction_band$lower_bound)
     new_target_prediction_band$lower_bound <- translate_cumulative_hazard_to_survival(target_prediction_band$upper_bound)
-    new_target_prediction_band$type <- "survival"
+    new_target_prediction_band$output_type <- "survival"
   }
   return(new_target_prediction_band)
 }
