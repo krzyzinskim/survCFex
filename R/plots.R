@@ -40,7 +40,7 @@ plot_predictions <- function(preds, times, preds_labels=NULL, alpha=0.3, linewid
 #' @param variables a numeric vector of column indices representing variables to plot. If NULL, all variables will be on the plot
 #'
 #' @export
-plot_parallel_coordinates <- function(counterfactual_explanations, filtered_examples = NULL, variables = NULL){
+plot_parallel_coordinates <- function(counterfactual_explanations, filtered_examples = NULL, variables = NULL, digits=2){
   if (is.null(variables)) {
     variables <- 1:ncol(counterfactual_explanations$counterfactual_examples)
   } else if (is.character(variables)) {
@@ -109,6 +109,9 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_exam
     maxs[!numeric_mask] <- sapply(categorical_variables_orderings, function(x) names(x)[which.max(x)])
   }
 
+  mins[numeric_mask] <- round(mins[numeric_mask], digits)
+  maxs[numeric_mask] <- round(maxs[numeric_mask], digits)
+
   text_df <- data.frame(
     variable = rep(variables, 2),
     value = rep(c(-0.05, 1.05), each=length(variables)),
@@ -132,9 +135,10 @@ plot_parallel_coordinates <- function(counterfactual_explanations, filtered_exam
                 y = "Scaled variable value",
                 caption = "Variable values are scaled to [0, 1] range.") +
            theme(legend.position = "bottom",
-                 plot.caption = element_text(hjust = 0.5, size = 7)) +
+                 plot.caption = element_text(hjust = 0.5),
+                 text = element_text(size=14)) +
            geom_text(data = text_df, inherit.aes = FALSE,
-                     aes(x = variable, y = value, label = label), size=3)
+                     aes(x = variable, y = value, label = label), size=4)
        }
   )
 
@@ -175,7 +179,8 @@ plot_changes_frequency <- function(counterfactual_explanations, filtered_example
            theme_minimal() +
            labs(title = "Frequency of variable changes",
                 y = "Variable",
-                x = "Fraction of counterfactuals with changes")
+                x = "Fraction of counterfactuals with changes") +
+           theme(text = element_text(size=14))
        }
   )
 }
