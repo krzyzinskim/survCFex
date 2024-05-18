@@ -7,14 +7,15 @@
 kovalev_method(
   explainer,
   new_observation,
+  r,
   num_iter = 200,
   num_particles = 1000,
   verbose = 10,
-  r = 50,
   C = 1e+06,
   w = 0.729,
   c1 = 1.4945,
   c2 = 1.4945,
+  tol_iter = 10,
   seed = NULL
 )
 }
@@ -23,13 +24,13 @@ kovalev_method(
 
 \item{new_observation}{a new observation for which we want to find a counterfactual}
 
+\item{r}{target difference between the mean time to survival of the counterfactual and the original observation}
+
 \item{num_iter}{number of iterations in PSO algorithm}
 
 \item{num_particles}{number of particles in PSO algorithm}
 
 \item{verbose}{if integer, print loss every verbose iterations}
-
-\item{r}{smallest distance between mean times to events of the original and counterfactual observations}
 
 \item{C}{penalty parameter for the loss function (used to enforce the counterfactuality)}
 
