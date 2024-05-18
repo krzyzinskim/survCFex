@@ -1,6 +1,6 @@
 library(ggplot2)
 
-#saveRDS(experiment1_results, "experiments/results/experiment1_results.rds")
+saveRDS(experiment1_results, "experiments/results/experiment1_results.rds")
 experiment1_results <- readRDS("experiments/results/experiment1_results.rds")
 
 
@@ -37,18 +37,21 @@ ggsave("experiments/plots/exp1_execution_time.pdf", dpi=500,
 # OBJECTIVE VALUES
 moc_all_ov <- do.call("rbind", lapply(experiment1_results$moc_results,
        function(res){
-         res$objective_values
+         crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
+         res$objective_values[select_population_indices(crowded_comparison_order, 10),]
        }))
 moc_all_ov$method <- "SurvMOC"
 
 tb_all_ov <- do.call("rbind", lapply(experiment1_results$tb_results,
        function(res){
          crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
-         res$objective_values[select_population_indices(crowded_comparison_order, 40),]
+         res$objective_values[select_population_indices(crowded_comparison_order, 10),]
        }))
 tb_all_ov$method <- "RSF-PT"
 
-
+nrow(tb_all_ov)
+tb_all_ov <- tb_all_ov[tb_all_ov$validity < 0.1, ]
+nrow(tb_all_ov)
 
 data_range <- apply(explainer$data, 2, range)
 kov_all_ov <- do.call("rbind", lapply(experiment1_results$kov_results,
@@ -60,7 +63,7 @@ kov_all_ov <- do.call("rbind", lapply(experiment1_results$kov_results,
                                     data_range, NULL,
                                     1, 5)
          crowded_comparison_order <- get_crowded_comparison_order(raw_obj)
-         raw_obj[select_population_indices(crowded_comparison_order, 40),]
+         raw_obj[select_population_indices(crowded_comparison_order, 10),]
        }))
 kov_all_ov$method <- "Kovalev"
 
@@ -78,9 +81,10 @@ ggplot(all_ov, aes(x = method, y = value)) +
   stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "violet") +
   xlab("Method") +
   facet_wrap(~variable, scales = "free_y", nrow = 1) +
-  theme_bw()
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ggsave("experiments/plots/exp1_objective_values.pdf", dpi=500,
-       width=10, height=4, units="in")
+       width=8, height=3.2, units="in")
 
 
 

@@ -1,4 +1,6 @@
-saveRDS(experiment6_results, "experiments/results/experiment6_results.rds")
+#saveRDS(experiment6_results, "experiments/results/experiment6_results.rds")
+
+experiment6_results <- readRDS("experiments/results/experiment6_results.rds")
 
 library(ggplot2)
 
@@ -35,7 +37,8 @@ ggsave("experiments/plots/exp6_execution_time.pdf", dpi=500,
 # OBJECTIVE VALUES
 moc_all_ov <- do.call("rbind", lapply(experiment6_results$moc_results,
                                       function(res){
-                                        res$objective_values
+                                        crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
+                                        res$objective_values[select_population_indices(crowded_comparison_order, 10),]
                                       }))
 moc_all_ov$method <- "SurvMOC"
 
@@ -50,7 +53,7 @@ kov_all_ov <- do.call("rbind", lapply(experiment6_results$kov_results,
                                                                               data_range, NULL,
                                                                               1, 5)
                                         crowded_comparison_order <- get_crowded_comparison_order(raw_obj)
-                                        raw_obj[select_population_indices(crowded_comparison_order, 40),]
+                                        raw_obj[select_population_indices(crowded_comparison_order, 10),]
                                       }))
 kov_all_ov$method <- "Kovalev"
 
@@ -68,9 +71,10 @@ ggplot(all_ov, aes(x = method, y = value)) +
   stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "violet") +
   xlab("Method") +
   facet_wrap(~variable, scales = "free_y", nrow = 1) +
-  theme_bw()
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ggsave("experiments/plots/exp6_objective_values.pdf", dpi=500,
-       width=10, height=4, units="in")
+       width=8, height=3.2, units="in")
 
 
 
@@ -78,7 +82,7 @@ ggsave("experiments/plots/exp6_objective_values.pdf", dpi=500,
 
 
 
-# HOW MANY COUNTERFACTUALS ARE NOT-DOMINATED?
+z# HOW MANY COUNTERFACTUALS ARE NOT-DOMINATED?
 clusters <- get_clusters(experiment6_results$dendrogram, k=4)[experiment6_results$not_in_target_cluster_ids][experiment6_results$sample_for_evaluation]
 
 moc_n_nd <- sapply(experiment6_results$moc_results,

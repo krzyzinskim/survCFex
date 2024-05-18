@@ -28,6 +28,60 @@ explainer <- explain(model,
 preds <- predict(explainer, explainer$data)
 weights <- survival_weights(explainer, explainer$times, p=0, q=0)
 
+
+times <- explainer$times
+n_times <- length(times)
+
+weights <- data.frame(
+  weight = c(
+    survival_weights(explainer, times, p=0, q=0),
+    survival_weights(explainer, times, p=1, q=0),
+    survival_weights(explainer, times, p=0, q=1),
+    survival_weights(explainer, times, p=0.5, q=0.5),
+    survival_weights(explainer, times, p=1, q=1)
+  ),
+  time = rep(times, 5),
+  params = rep(c("p=0, q=0", "p=1, q=0", "p=0, q=1", "p=0.5, q=0.5", "p=1, q=1"), each = n_times)
+)
+
+
+p1 <- ggplot(weights, aes(x = time, y = weight, group = params, color = params)) +
+  geom_step(linewidth=0.6) +
+  xlab("Time") +
+  ylab("Weight") +
+  ggtitle("Survival weights") +
+  theme_minimal() +
+  scale_color_brewer(type = "qual", palette = "Set1") +
+  guides(color = guide_legend(title = "Parameters", nrow=2)) +
+  theme(legend.position = "bottom")
+p1
+
+km <- survival::survfit(explainer$y ~ 1)
+surv_estimator <- stepfun(km$time, c(1, km$surv))
+sf <- surv_estimator(times)
+sf
+
+sf_df <- data.frame(time = c(0, times), survival = c(1, sf))
+
+p2 <- ggplot(sf_df, aes(x = time, y = survival)) +
+  geom_step(linewidth=0.6) +
+  xlab("Time") +
+  ylab("Survival probability") +
+  theme_minimal() +
+  ggtitle("Kaplan-Meier estimate")
+
+ggarrange(p2, p1, ncol = 2, widths = c(1.5, 2),
+          common.legend = TRUE, legend = "bottom")
+
+ggsave("experiments/plots/exp1_weights.pdf", width = 7, height = 3, dpi = 500)
+
+
+plot_survival_weights(explainer, explainer$times, p=0, q=10)
+
+
+
+
+
 dists <- survival_distance_matrix(preds, explainer$times, weights)
 dendrogram <- get_clustering_dendrogram(dists)
 plot(dendrogram)
@@ -37,7 +91,9 @@ plot(get_clustering_utilities(dendrogram, max_k = 6))
 plot_envelopes(preds, get_clusters(dendrogram, k=5),
                alpha = 0.5,
                explainer$times,
-               q = 0.05)
+               q = 0.1) +
+  theme(legend.position = "bottom")
+ggsave("experiments/plots/exp1_envelopes.pdf", width = 5, height = 3, dpi = 500)
 
 target_envelope_sf <- get_envelope(preds, get_clusters(dendrogram, k=5),
                                 cluster_id=5, q = 0.05)

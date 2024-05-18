@@ -13,10 +13,11 @@ model <- ranger(Surv(time, status) ~ ., data = df,
                 min.node.size = 5)
 explainer <- explain(model,
                      data = df[3:9],
-                     y = Surv(df$time, df$status))
+                     y = Surv(df$time, df$status),
+                     times = model$unique.death.times)
+
 
 preds <- predict(explainer, df[,3:9])
-
 plot_survival_weights(explainer, explainer$times, p=0, q=0)
 weights <- survival_weights(explainer, explainer$times, p=0, q=0)
 

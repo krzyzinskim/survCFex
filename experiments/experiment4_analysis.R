@@ -1,4 +1,4 @@
-#saveRDS(experiment4_results, "experiments/results/experiment4_results.rds")
+saveRDS(experiment4_results, "experiments/results/experiment4_results.rds")
 
 library(ggplot2)
 library(ggpubr)

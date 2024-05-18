@@ -70,6 +70,12 @@ n_valid <- data.frame(res_df %>%
 n_valid[1:24,]
 
 
+n_valid$step <- factor(n_valid$step,
+                       levels = c("1", "2"),
+                       labels = c("step = 1",
+                                  "step = 2"),
+                       ordered = TRUE)
+
 
 ggplot(n_valid, aes(x = factor(paths_per_tree), y = mean_valid, fill = factor(paths_per_counterfactual))) +
   geom_bar(stat="identity", position = "dodge", width=0.8) +
@@ -80,7 +86,7 @@ ggplot(n_valid, aes(x = factor(paths_per_tree), y = mean_valid, fill = factor(pa
        y = "Percentage of cases with at least one\n valid counterfactual example") +
   theme_bw() +
   theme(legend.position = "bottom")
-ggsave("experiments/plots/exp5_validity.pdf", dpi=500, width=10, height=4)
+ggsave("experiments/plots/exp5_validity.pdf", dpi=500, width=8, height=4)
 
 
 

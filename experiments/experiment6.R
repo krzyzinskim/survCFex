@@ -26,7 +26,11 @@ plot(get_clustering_utilities(dendrogram, max_k = 6))
 plot_envelopes(preds, get_clusters(dendrogram, k=4),
                alpha = 0.5,
                explainer$times,
-               q = 0.05)
+               q = 0.05) +
+  theme(legend.position = "bottom")
+
+ggsave("experiments/plots/exp6_envelopes.pdf", width = 5, height = 3, dpi = 500)
+
 
 target_envelope_sf <- get_envelope(preds, get_clusters(dendrogram, k=4),
                                    cluster_id=1, q = 0.05)
