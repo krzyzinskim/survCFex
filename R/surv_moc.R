@@ -1,36 +1,38 @@
 #' @import survex
 #' @export
-multiobjective_counterfactuals <- function(explainer, new_observation, times,
-                                           background_data=NULL,
-                                           weights=rep(1, length(times)),
-                                           target_change=NULL,
-                                           target_envelope=NULL,
-                                           fixed_variables_indices=NULL,
-                                           numerical_variables_indices=NULL,
-                                           categorical_variables_indices=NULL,
-                                           integer_variables_indices=NULL,
-                                           binary_variables_indices=NULL,
-                                           plausible_data_range=NULL,
-                                           plausible_categorical_values=NULL,
-                                           initialization_type="ice",
-                                           data_distance_p=1,
-                                           plausibility_k_neighbors=5,
-                                           sbx_eta=5,
-                                           gene_recombination_probability=0.9,
-                                           mutation_probability=0.8,
-                                           gene_mutation_probability=0.7,
-                                           revert_change_probability=0.3,
-                                           max_generations=100,
-                                           population_size=20,
-                                           validity_threshold=function(x) quantile(x, 0.8, names=FALSE),
-                                           tol_iter=3,
-                                           verbose=FALSE,
-                                           seed=NULL){
+surv_moc <- function(explainer,
+                   new_observation,
+                   weights=survival_weights(explainer, p=0, q=0),
+                   target_prediction_band=NULL,
+                   background_data=NULL,
+                   target_change=NULL,
+                   fixed_variables_indices=NULL,
+                   numerical_variables_indices=NULL,
+                   categorical_variables_indices=NULL,
+                   integer_variables_indices=NULL,
+                   binary_variables_indices=NULL,
+                   plausible_data_range=NULL,
+                   plausible_categorical_values=NULL,
+                   initialization_type="ice",
+                   data_distance_p=1,
+                   plausibility_k_neighbors=5,
+                   sbx_eta=5,
+                   gene_recombination_probability=0.9,
+                   mutation_probability=0.8,
+                   gene_mutation_probability=0.7,
+                   revert_change_probability=0.3,
+                   max_generations=100,
+                   population_size=20,
+                   validity_threshold=function(x) quantile(x, 0.8, names=FALSE),
+                   tol_iter=3,
+                   verbose=FALSE,
+                   seed=NULL){
 
   p <- ncol(new_observation)
+  times <- explainer$times
   stopifnot("Weights must be a numeric vector with non-negative values and sum(weights) > 0" = is.numeric(weights) & all(weights >= 0) & sum(weights) > 0)
-  stopifnot("Either target_change or target_envelope must be provided" = !is.null(target_change) | !is.null(target_envelope))
-  check_target_envelope(target_envelope, times)
+  stopifnot("Either target_change or target_prediction_band must be provided" = !is.null(target_change) | !is.null(target_prediction_band))
+  check_target_prediction_band(target_prediction_band, times)
   stopifnot("Length of times and weights must be the same" = length(times) == length(weights))
   stopifnot("fixed_variables_indices must be a vector of positive integers" =
               is.null(fixed_variables_indices) |
@@ -118,7 +120,7 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
 
   original_sf <- predict(explainer, new_observation, times=times)
 
-  population <- initialize_population(initialization_type, explainer, times, weights, target_envelope,
+  population <- initialize_population(initialization_type, explainer, times, weights, target_prediction_band,
                                       new_observation, background_data, population_size,
                                       lower, upper, stdevs,
                                       numerical_variables_indices, categorical_variables_indices,
@@ -129,7 +131,7 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
   objective_values <- calculate_objective_values(background_data, times, weights,
                                                  new_observation, population,
                                                  original_sf, population_sfs,
-                                                 target_change, target_envelope,
+                                                 target_change, target_prediction_band,
                                                  data_range, categorical_variables_indices,
                                                  data_distance_p, plausibility_k_neighbors)
 
@@ -165,7 +167,7 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
     objective_values <- calculate_objective_values(background_data, times, weights,
                                                    new_observation, population,
                                                    original_sf, population_sfs,
-                                                   target_change, target_envelope,
+                                                   target_change, target_prediction_band,
                                                    data_range, categorical_variables_indices,
                                                    data_distance_p, plausibility_k_neighbors)
     crowded_comparison_order <- get_crowded_comparison_order(objective_values, validity_threshold)
@@ -214,7 +216,7 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
   objective_values <- calculate_objective_values(background_data, times, weights,
                                                  new_observation, population,
                                                  original_sf, population_sfs,
-                                                 target_change, target_envelope,
+                                                 target_change, target_prediction_band,
                                                  data_range, categorical_variables_indices,
                                                  data_distance_p, plausibility_k_neighbors)
   crowded_comparison_order <- get_crowded_comparison_order(objective_values, validity_threshold)
@@ -237,7 +239,7 @@ multiobjective_counterfactuals <- function(explainer, new_observation, times,
   final_preds <- predict(explainer, population, times = times)
   result <- list(
     original_observation = new_observation,
-    target_envelope = target_envelope,
+    target_prediction_band = target_prediction_band,
     times = times,
     history = history,
     original_prediction = original_sf,
@@ -296,15 +298,15 @@ make_new_population <- function(population, objective_values,
 calculate_objective_values <- function(background_data, times, weights,
                                        original_x, candidates_z,
                                        original_sf, candidates_sfs,
-                                       target_change, target_envelope,
+                                       target_change, target_prediction_band,
                                        data_range, categorical_variables_indices,
                                        data_distance_p, plausibility_k_neighbors){
-  if (!is.null(target_envelope)){
-    prediction_loss_val <- distance_from_target_envelope(candidates_sfs, target_envelope, times, weights)
+  if (!is.null(target_prediction_band)){
+    prediction_loss_val <- distance_from_target_prediction_band(candidates_sfs, target_prediction_band, times, weights)
   } else if (!is.null(target_change)){
     prediction_loss_val <- distance_from_target_change(original_sf, candidates_sfs, target_change, times, weights)
   } else {
-    stop("Either target_change or target_envelope must be provided")
+    stop("Either target_change or target_prediction_band must be provided")
   }
 
   data_distance_loss_val <- gower_distance_loss(original_x, candidates_z,
@@ -479,21 +481,21 @@ transform_to_original_x <- function(population, original_x,
 }
 
 
-initialize_population <- function(type, explainer, times, weights, target_envelope,
+initialize_population <- function(type, explainer, times, weights, target_prediction_band,
                                   new_observation, background_data, population_size,
                                   lower, upper, stdevs,
                                   numerical_variables_indices, categorical_variables_indices,
                                   integer_variables_indices, binary_variables_indices,
                                   fixed_variables_indices, plausible_categorical_values){
   if (type == "ice"){
-    return(initialize_population_ice(explainer, times, weights, target_envelope,
+    return(initialize_population_ice(explainer, times, weights, target_prediction_band,
                                      new_observation, background_data, population_size,
                                      lower, upper, stdevs,
                                      numerical_variables_indices, categorical_variables_indices,
                                      integer_variables_indices, binary_variables_indices,
                                      fixed_variables_indices, plausible_categorical_values))
   } else if (type == "background"){
-    return(initialize_population_from_background(explainer, times, weights, target_envelope,
+    return(initialize_population_from_background(explainer, times, weights, target_prediction_band,
                                                  new_observation, background_data, population_size,
                                                  lower, upper, stdevs,
                                                  numerical_variables_indices, categorical_variables_indices,
@@ -505,7 +507,7 @@ initialize_population <- function(type, explainer, times, weights, target_envelo
 }
 
 
-initialize_population_from_background <- function(explainer, times, weights, target_envelope,
+initialize_population_from_background <- function(explainer, times, weights, target_prediction_band,
                                                   new_observation, background_data, population_size,
                                                   lower, upper, stdevs,
                                                   numerical_variables_indices, categorical_variables_indices,
@@ -538,7 +540,7 @@ initialize_population_from_background <- function(explainer, times, weights, tar
 }
 
 
-initialize_population_ice <- function(explainer, times, weights, target_envelope,
+initialize_population_ice <- function(explainer, times, weights, target_prediction_band,
                                       new_observation, background_data, population_size,
                                       lower, upper, stdevs,
                                       numerical_variables_indices, categorical_variables_indices,
@@ -554,8 +556,8 @@ initialize_population_ice <- function(explainer, times, weights, target_envelope
   for (var in colnames(new_observation)){
     tmp <- ice$result[ice$result$`_vname_` == var, c(var, "_times_", "_yhat_")]
     res <- aggregate(`_yhat_` ~ `_times_`, tmp, sd)
-    sf_diff <- pmax(sf - as.list(target_envelope$upper_bound),
-                    as.list(target_envelope$lower_bound) - sf)
+    sf_diff <- pmax(sf - as.list(target_prediction_band$upper_bound),
+                    as.list(target_prediction_band$lower_bound) - sf)
     probs[var] <- survival_distance(0, sf_diff * res$`_yhat_`, times, weights)
   }
 

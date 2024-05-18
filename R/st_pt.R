@@ -1,20 +1,20 @@
 #' @import survex
 #' @export
-treebased_counterfactuals <- function(explainer,
-                                      new_observation,
-                                      times,
-                                      background_data=NULL,
-                                      weights=rep(1, length(times)),
-                                      target_envelope=NULL,
-                                      paths_per_tree=20L,
-                                      paths_per_counterfactual=1L,
-                                      max_tries=200,
-                                      step=1,
-                                      max_counterfactuals=NULL,
-                                      fixed_variables_indices=NULL,
-                                      plausible_values=NULL,
-                                      verbose=FALSE,
-                                      seed=NULL){
+st_pt <- function(explainer,
+                new_observation,
+                times,
+                background_data=NULL,
+                weights=rep(1, length(times)),
+                target_envelope=NULL,
+                paths_per_tree=20L,
+                paths_per_counterfactual=1L,
+                max_tries=200,
+                step=1,
+                max_counterfactuals=NULL,
+                fixed_variables_indices=NULL,
+                plausible_values=NULL,
+                verbose=FALSE,
+                seed=NULL){
   ### CHECKS
 
   p <- ncol(new_observation)
