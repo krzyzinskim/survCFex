@@ -25,7 +25,7 @@ analyze <- function(counterfactual_explanations, digits=2) {
         lapply(loss_functions, function(loss) {
           sliderInput(
             paste0(loss, "_slider"),
-            h5(loss),
+            h5(paste(loss, "loss")),
             min = 0,
             max = ceiling(max(counterfactual_explanations$objective_values[, loss]) * 10^digits) / 10^digits,
             value = ceiling(max(counterfactual_explanations$objective_values[, loss]) * 10^digits) / 10^digits,
@@ -105,11 +105,13 @@ analyze <- function(counterfactual_explanations, digits=2) {
 
     output$parallel_coordinates <- renderPlot({
       plot_parallel_coordinates(counterfactual_explanations, filtered_data())
-    })
+    },
+    res = 90)
 
     output$changes_frequency <- renderPlot({
       plot_changes_frequency(counterfactual_explanations, filtered_data())
-    })
+    },
+    res = 90)
 
     output$counterfactuals <- DT::renderDataTable({
       DT::datatable(
