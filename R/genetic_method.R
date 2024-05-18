@@ -569,7 +569,7 @@ initialize_population_ice <- function(explainer, times, weights, target_envelope
 
   population <- new_observation[rep(1, population_size),]
 
-    for (i in seq_len(n_numerical)){
+  for (i in seq_len(n_numerical)){
     mutation_mask <- runif(population_size) < probs[numerical_variables_indices[i]]
     population[mutation_mask, numerical_variables_indices[i]] <- runif(population_size, lower[i], upper[i])[mutation_mask]
   }
