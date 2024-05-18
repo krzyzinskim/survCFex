@@ -1,3 +1,5 @@
 .Rproj.user
 experiments/plots
 experiments/results
+.DS_Store
+.Rhistory
