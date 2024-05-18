@@ -33,7 +33,7 @@ analyze_clustering <- function(clustering,
   cat("n_clusters: p-value\n")
   cat("-------------------\n")
   pvals <- get_clustering_utilities(clustering, max_k, min_obs, p, q)
-  cat(paste(1:max_k, utilities, sep = ": ", collapse = "\n"))
+  cat(paste(1:max_k, pvals, sep = ": ", collapse = "\n"))
   cat("\n")
   plot(pvals,
        main = "Weighted log-rank test p-values",

@@ -197,7 +197,7 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
     filtered_predictions <- counterfactual_explanations$predictions
   }
   original_prediction <- counterfactual_explanations$original_prediction[1,]
-  target_envelope <- counterfactual_explanations$target_envelope
+  target_prediction_band <- counterfactual_explanations$target_prediction_band
   numeric_mask <- sapply(counterfactual_explanations$original_observation, is.numeric)
 
   counterfactuals_type <- class(counterfactual_explanations)[2]
@@ -219,7 +219,7 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
       filtered_predictions <- translate_cumulative_hazard_to_survival(filtered_predictions)
       original_prediction <- translate_cumulative_hazard_to_survival(original_prediction)
     }
-    target_envelope <- translate_target_envelope(target_envelope)
+    target_prediction_band <- translate_target_prediction_band(target_prediction_band)
   }
 
   function_names <- c("survival" = "Survival probability",
@@ -262,16 +262,16 @@ plot_counterfactual_predictions <- function(counterfactual_explanations,
 
   fig <- fig %>% add_ribbons(
     x = counterfactual_explanations$times,
-    ymin = target_envelope$lower_bound,
-    ymax = target_envelope$upper_bound,
+    ymin = target_prediction_band$lower_bound,
+    ymax = target_prediction_band$upper_bound,
     fillcolor = "rgba(155, 50, 204, 0.25)",
     line = list(width = 0, color="darkorchid"),
     showlegend = FALSE,
-    text = "Target envelope",
+    text = "Target prediction band",
     hovertemplate =
       paste0("<b>Time:</b> %{x}<br>",
              "<b>", y_title, "</b> %{y:.3f}<br>",
-             "<extra>Target envelope</extra>")
+             "<extra>Target prediction band</extra>")
   )
 
   for (i in 1:nrow(filtered_predictions)) {
