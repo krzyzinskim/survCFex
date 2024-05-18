@@ -1,5 +1,5 @@
 #' @export
-survival_weights <- function(explainer, times, p=0, q=0, add_mean = FALSE){
+survival_weights <- function(explainer, times=explainer$times, p=0, q=0, add_mean = FALSE){
   if (p == 0 & q == 0){
     weights <- rep(1, length(times))
   } else {
