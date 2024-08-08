@@ -1,6 +1,6 @@
 library(ggplot2)
 
-saveRDS(experiment1_results, "experiments/results/experiment1_results.rds")
+#saveRDS(experiment1_results, "experiments/results/experiment1_results.rds")
 experiment1_results <- readRDS("experiments/results/experiment1_results.rds")
 
 
@@ -12,10 +12,20 @@ execution_time_df <- data.frame(
   time = c(experiment1_results$moc_time,
            experiment1_results$tb_time,
            experiment1_results$kov_time),
-  method = c(rep("MOC", length(experiment1_results$moc_time)),
-             rep("TB", length(experiment1_results$tb_time)),
-             rep("KOV", length(experiment1_results$kov_time)))
+  method = c(rep("SurvMOC", length(experiment1_results$moc_time)),
+             rep("ST-PT", length(experiment1_results$tb_time)),
+             rep("Kovalev", length(experiment1_results$kov_time)))
 )
+
+
+library(dplyr)
+
+execution_time_df %>%
+  group_by(method) %>%
+  summarise(mean_time = mean(time),
+            sd_time = sd(time),
+            min_time = min(time),
+            max_time = max(time))
 
 ggplot(execution_time_df, aes(x = method, y = time)) +
   geom_boxplot(staplewidth = 0.5,
@@ -29,7 +39,7 @@ ggplot(execution_time_df, aes(x = method, y = time)) +
   theme_bw()
 
 ggsave("experiments/plots/exp1_execution_time.pdf", dpi=500,
-       width=4, height=4, units="in")
+       width=4.5, height=3, units="in")
 
 
 
@@ -47,11 +57,12 @@ tb_all_ov <- do.call("rbind", lapply(experiment1_results$tb_results,
          crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
          res$objective_values[select_population_indices(crowded_comparison_order, 10),]
        }))
-tb_all_ov$method <- "RSF-PT"
+tb_all_ov$method <- "ST-PT"
 
 nrow(tb_all_ov)
-tb_all_ov <- tb_all_ov[tb_all_ov$validity < 0.1, ]
-nrow(tb_all_ov)
+tb_all_ov_wo_outliers <- tb_all_ov
+tb_all_ov_wo_outliers[tb_all_ov_wo_outliers$validity > 0.1, "validity"] <- NA
+sum(tb_all_ov$validity < 0.1)
 
 data_range <- apply(explainer$data, 2, range)
 kov_all_ov <- do.call("rbind", lapply(experiment1_results$kov_results,
@@ -68,9 +79,13 @@ kov_all_ov <- do.call("rbind", lapply(experiment1_results$kov_results,
 kov_all_ov$method <- "Kovalev"
 
 
-all_ov <- rbind(moc_all_ov, tb_all_ov, kov_all_ov)
+all_ov <- rbind(moc_all_ov, tb_all_ov_wo_outliers, kov_all_ov)
 
 all_ov <- reshape2::melt(all_ov, id.vars = c("method"))
+
+
+all_ov$variable <- factor(paste(all_ov$variable, "loss", sep = " "),
+                          levels = c("validity loss", "similarity loss", "sparsity loss", "plausibility loss"))
 
 ggplot(all_ov, aes(x = method, y = value)) +
   geom_boxplot(staplewidth = 0.5,
@@ -89,16 +104,40 @@ ggsave("experiments/plots/exp1_objective_values.pdf", dpi=500,
 
 
 
+all_ov2 <- rbind(moc_all_ov, tb_all_ov, kov_all_ov)
+
+all_ov2 <- reshape2::melt(all_ov2, id.vars = c("method"))
+
+
+ggplot(all_ov2[all_ov2$variable == 'validity',], aes(x = method, y = value)) +
+  geom_boxplot(staplewidth = 0.5,
+               outlier.shape = 1,
+               outlier.size = 0.5,
+               fill="darkorchid") +
+  # add mean
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "violet") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Method", y = "Validity")
+
+ggsave("experiments/plots/exp1_objective_validity.pdf", dpi=500,
+       width=3, height=3.2, units="in")
+
+
+
+
 # HOW MANY TIMES AT LEAST ONE VALID?
 moc_n_valid <- sapply(experiment1_results$moc_results,
-       function(res){
-         sum(res$objective_values$validity == 0)
+         function(res){
+           crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
+           obj <- res$objective_values[select_population_indices(crowded_comparison_order, 10),]
+           sum(obj$validity == 0)
        })
 
 tb_n_valid <- sapply(experiment1_results$tb_results,
        function(res){
          crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
-         obj <- res$objective_values[select_population_indices(crowded_comparison_order, 40),]
+         obj <- res$objective_values[select_population_indices(crowded_comparison_order, 10),]
          sum(obj$validity == 0)
        })
 
@@ -111,14 +150,14 @@ kov_n_valid <- sapply(experiment1_results$kov_results,
                                     data_range, NULL,
                                     1, 5)
          crowded_comparison_order <- get_crowded_comparison_order(raw_obj)
-         raw_obj <- raw_obj[select_population_indices(crowded_comparison_order, 40),]
+         raw_obj <- raw_obj[select_population_indices(crowded_comparison_order, 10),]
          sum(raw_obj$validity == 0)
        })
 
 
 kov_n_valid_original <- sapply(experiment1_results$kov_results,
                       function(res){
-                        min(sum(res$objective$validity == 0), 40)
+                        min(sum(res$objective$validity == 0), 10)
                       })
 
 
@@ -127,7 +166,7 @@ clusters <- get_clusters(experiment1_results$dendrogram, k=5)[experiment1_result
 
 valid_df <- data.frame(
   method = c(rep("SurvMOC", length(moc_n_valid)),
-             rep("RSF-PT", length(tb_n_valid)),
+             rep("ST-PT", length(tb_n_valid)),
              rep("Kovalev", length(kov_n_valid))),
   n_valid = c(moc_n_valid, tb_n_valid, kov_n_valid),
   obs_id = rep(1:length(moc_n_valid), 3),
@@ -138,9 +177,9 @@ valid_df$any_valid <- as.numeric(valid_df$n_valid > 0)
 valid_df
 
 valid_df_percentage <- data.frame(
-  method = c("SurvMOC", "RSF-PT", "Kovalev"),
+  method = c("SurvMOC", "ST-PT", "Kovalev"),
   any_valid = c(mean(valid_df$any_valid[valid_df$method == "SurvMOC"]),
-                mean(valid_df$any_valid[valid_df$method == "RSF-PT"]),
+                mean(valid_df$any_valid[valid_df$method == "ST-PT"]),
                 mean(valid_df$any_valid[valid_df$method == "Kovalev"]))
 )
 
@@ -160,17 +199,18 @@ p1 <- ggplot(valid_df_percentage, aes(x = method, y = any_valid)) +
 p2 <- ggplot(valid_df, aes(x = obs_id, y = n_valid, color = factor(obs_cluster))) +
   geom_point() +
   xlab("Observation ID") +
-  ylab("Number of valid\ncounterfactual examples in top-40") +
+  ylab("Number of valid\ncounterfactual examples in top-10") +
   theme_bw() +
   theme(legend.position = "bottom") +
   facet_wrap(~method, ncol = 1) +
   scale_color_brewer(palette = "Set2", type = "qual", name = "Cluster") +
-  theme(legend.position = "right")
+  theme(legend.position = "right") +
+  scale_y_continuous(breaks = seq(0, 10, 2))
 
 library(ggpubr)
 ggarrange(p1, p2, ncol = 2, nrow = 1, widths = c(1, 2))
-ggsave("experiments/plots/exp1_validity.pdf", dpi=500,
-       width=10, height=4, units="in")
+ggsave("experiments/plots/exp1_validity.pdf", dpi=200,
+       width=8, height=3, units="in")
 
 
 
@@ -180,6 +220,8 @@ ggsave("experiments/plots/exp1_validity.pdf", dpi=500,
 moc_n_nd <- sapply(experiment1_results$moc_results,
        function(res){
          obj <- res$objective_values
+         crowded_comparison_order <- get_crowded_comparison_order(obj)
+         obj <- obj[select_population_indices(crowded_comparison_order, 10),]
          sum(ecr::doNondominatedSorting(as.matrix(t(obj)))$ranks == 1)
        })
 
@@ -187,7 +229,7 @@ tb_n_nd <- sapply(experiment1_results$tb_results,
       function(res){
         obj <- res$objective_values
         crowded_comparison_order <- get_crowded_comparison_order(obj)
-        obj <- obj[select_population_indices(crowded_comparison_order, 40),]
+        obj <- obj[select_population_indices(crowded_comparison_order, 10),]
         sum(ecr::doNondominatedSorting(as.matrix(t(obj)))$ranks == 1)
       })
 
@@ -200,7 +242,7 @@ kov_n_nd <- sapply(experiment1_results$kov_results,
                                     data_range, NULL,
                                     1, 5)
          crowded_comparison_order <- get_crowded_comparison_order(raw_obj)
-         raw_obj <- raw_obj[select_population_indices(crowded_comparison_order, 40),]
+         raw_obj <- raw_obj[select_population_indices(crowded_comparison_order, 10),]
          sum(ecr::doNondominatedSorting(as.matrix(t(raw_obj)))$ranks == 1)
        })
 
@@ -209,7 +251,7 @@ kov_n_nd <- sapply(experiment1_results$kov_results,
 
 nondominated_df <- data.frame(
   method = c(rep("SurvMOC", length(moc_n_valid)),
-             rep("RSF-PT", length(tb_n_valid)),
+             rep("ST-PT", length(tb_n_valid)),
              rep("Kovalev", length(kov_n_valid))),
   n_nondominated = c(moc_n_nd, tb_n_nd, kov_n_nd),
   obs_id = rep(1:length(moc_n_valid), 3),
@@ -224,14 +266,15 @@ p1 <- ggplot(nondominated_df, aes(x = method, y = n_nondominated)) +
                              fill="darkorchid") +
   stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "violet") +
   xlab("Method") +
-  ylab("Number of non-dominatedcounterfactual examples") +
-  theme_bw()
+  ylab("Number of non-dominated\ncounterfactual examples") +
+  theme_bw() +
+  scale_y_continuous(breaks = seq(0, 10, 2))
 p1
 
 p2 <- ggplot(nondominated_df, aes(x = obs_id, y = n_nondominated, color = factor(obs_cluster))) +
   geom_point() +
   xlab("Observation ID") +
-  ylab("Number of non-dominated\ncounterfactual examples in top-40") +
+  ylab("Number of non-dominated \n counterfactual examples in top-40") +
   theme_bw() +
   theme(legend.position = "bottom") +
   facet_wrap(~method, ncol = 1) +
@@ -241,7 +284,7 @@ p2
 
 ggarrange(p1, p2, ncol = 2, nrow = 1, widths = c(1, 2))
 ggsave("experiments/plots/exp1_nondomination.pdf", dpi=500,
-       width=10, height=4, units="in")
+       width=4.5, height=3, units="in")
 
 
 # valid_df
@@ -321,14 +364,17 @@ mask_ones <- evaluation_sample$x1 == 1
 
 moc_x1 <- lapply(experiment1_results$moc_results,
        function(res){
-         res$counterfactual_examples$x1
+         crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
+         sel_ces <- select_population_indices(crowded_comparison_order, 10)
+         ces <- res$counterfactual_examples[sel_ces,]
+         ces$x1
        })
 
 
 tb_x1 <- lapply(experiment1_results$tb_results,
                      function(res){
                        crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
-                       sel_ces <- select_population_indices(crowded_comparison_order, 40)
+                       sel_ces <- select_population_indices(crowded_comparison_order, 10)
                        ces <- res$counterfactual_examples[sel_ces,]
                        ces$x1
                      })
@@ -342,7 +388,7 @@ kov_x1 <- lapply(experiment1_results$kov_results,
                                                               data_range, NULL,
                                                               1, 5)
                         crowded_comparison_order <- get_crowded_comparison_order(raw_obj)
-                        ces <- res$counterfactual_examples[select_population_indices(crowded_comparison_order, 40),]
+                        ces <- res$counterfactual_examples[select_population_indices(crowded_comparison_order, 10),]
                         ces[,1]
                       })
 
@@ -351,27 +397,15 @@ kov_x1 <- lapply(experiment1_results$kov_results,
 moc_ones <- sapply(moc_x1, function(x) sum(x == 1))
 tb_ones <- sapply(tb_x1, function(x) sum(x == 1))
 kov_ones_real <- sapply(kov_x1, function(x) sum(x == 1))
-kov_ones <- sapply(kov_x1, function(x) sum(abs(x-1)<abs(x)))
+kov_ones <- sapply(kov_x1, function(x) sum(abs(x-1)<=abs(x)))
 
-table(moc_ones == 40, mask_ones)
-table(tb_ones == 40, mask_ones)
-table(kov_ones == 40, mask_ones)
+table(moc_ones == 10, mask_ones)
+table(tb_ones, mask_ones)
+table(kov_ones == 10, mask_ones)
 
 
-# table(moc_ones == 40, mask_ones)
-# mask_ones
-# FALSE TRUE
-# TRUE    27   23
-#
-# table(tb_ones == 40, mask_ones)
-# mask_ones
-# FALSE TRUE
-# FALSE     2    2
-# TRUE     25   21
-#
-# table(kov_ones == 40, mask_ones)
-# mask_ones
-# FALSE TRUE
-# FALSE    27    5
-# TRUE      0   18
+10 - tb_ones[mask_ones]
+sum(tb_ones[!mask_ones])
 
+10 - kov_ones[mask_ones]
+kov_ones[!mask_ones]

@@ -5,7 +5,7 @@ devtools::load_all(".")
 
 df <- read.csv("experiments/data/lung_dataset.csv")
 df <- df[complete.cases(df), ]
-
+nrow(df)
 set.seed(123)
 model <- ranger(Surv(time, status) ~ ., data = df,
                 num.trees = 200,
@@ -21,16 +21,14 @@ plot_survival_weights(explainer, explainer$times, p=0, q=0)
 weights <- survival_weights(explainer, explainer$times, p=0, q=0)
 
 
-dists <- survival_distance_matrix(preds, explainer$times, weights)
-dendrogram <- get_clustering_dendrogram(dists)
+clustering <- get_hierarchical_clustering(explainer, weights)
+analyze_clustering(clustering)
 plot(dendrogram)
 
-plot(get_clustering_utilities(dendrogram, max_k = 6))
 
-plot_envelopes(preds, get_clusters(dendrogram, k=4),
+plot_prediction_bands(explainer, get_clusters(clustering, k=4),
                alpha = 0.5,
-               explainer$times,
-               q = 0.1) +
+               lambda = 0.1) +
   theme(legend.position = "bottom")
 ggsave("experiments/plots/exp2_envelopes.pdf", width = 5, height = 3, dpi = 500)
 

@@ -6,12 +6,6 @@ devtools::load_all(".")
 set.seed(42)
 df <- read.csv("experiments/data/exp1_data_complex.csv")
 
-# train_ids <- sample(1:nrow(df), 0.8*nrow(df))
-# df_train <- df[train_ids,]
-# df_test <- df[-train_ids,]
-#
-# evaluation_sample_ids <- sample(1:nrow(df), 0.2*nrow(df))
-
 set.seed(42)
 model <- ranger(Surv(time, event) ~ .,
                 data = df,
@@ -25,14 +19,15 @@ explainer <- explain(model,
                      data = df[1:5],
                      y = Surv(df$time, df$event))
 
-preds <- predict(explainer, explainer$data)
-weights <- survival_weights(explainer, explainer$times, p=0, q=0)
+class(explainer)
 
+preds <- predict(explainer, explainer$data)
+weights <- survival_weights(explainer, p=0, q=0)
 
 times <- explainer$times
 n_times <- length(times)
 
-weights <- data.frame(
+weights_df <- data.frame(
   weight = c(
     survival_weights(explainer, times, p=0, q=0),
     survival_weights(explainer, times, p=1, q=0),
@@ -45,7 +40,7 @@ weights <- data.frame(
 )
 
 
-p1 <- ggplot(weights, aes(x = time, y = weight, group = params, color = params)) +
+p1 <- ggplot(weights_df, aes(x = time, y = weight, group = params, color = params)) +
   geom_step(linewidth=0.6) +
   xlab("Time") +
   ylab("Weight") +
@@ -79,25 +74,19 @@ ggsave("experiments/plots/exp1_weights.pdf", width = 7, height = 3, dpi = 500)
 plot_survival_weights(explainer, explainer$times, p=0, q=10)
 
 
+dendrogram <- get_hierarchical_clustering(explainer, weights)
+analyze_clustering(dendrogram)
 
-
-
-dists <- survival_distance_matrix(preds, explainer$times, weights)
-dendrogram <- get_clustering_dendrogram(dists)
-plot(dendrogram)
-
-plot(get_clustering_utilities(dendrogram, max_k = 6))
-
-plot_envelopes(preds, get_clusters(dendrogram, k=5),
+plot_prediction_bands(explainer,
+               get_clusters(dendrogram, k=5),
                alpha = 0.5,
-               explainer$times,
-               q = 0.1) +
+               lambda = 0.1) +
   theme(legend.position = "bottom")
 ggsave("experiments/plots/exp1_envelopes.pdf", width = 5, height = 3, dpi = 500)
 
-target_envelope_sf <- get_envelope(preds, get_clusters(dendrogram, k=5),
-                                cluster_id=5, q = 0.05)
-target_envelope_chf <- translate_target_envelope(target_envelope_sf)
+target_prediction_band_sf <- get_prediction_band(explainer, get_clusters(dendrogram, k=5),
+                                cluster_id=5, lambda = 0.05)
+target_prediction_band_chf <- translate_target_prediction_band(target_prediction_band_sf)
 
 
 mu_target <- mean_time_to_survival(
@@ -126,25 +115,23 @@ for (i in seq_len(k)){
   obs <- tmp_df[sample_for_evaluation[i], 1:5]
 
   moc_start <- Sys.time()
-  moc_results[[i]] <- multiobjective_counterfactuals(explainer, obs,
-                                                     times = explainer$times,
-                                                     target_envelope = target_envelope_sf,
-                                                     seed = i,
-                                                     population_size = 40,
-                                                     max_generations = 100,
-                                                     weights = weights,
-                                                     validity_threshold = 0,
-                                                     verbose = FALSE,
-                                                     tol_iter = 4)
+  moc_results[[i]] <- surv_moc(explainer, obs,
+                               target_prediction_band = target_prediction_band_sf,
+                               seed = i,
+                               population_size = 40,
+                               max_generations = 100,
+                               weights = weights,
+                               validity_threshold = 0,
+                               verbose = FALSE,
+                               tol_iter = 4)
   moc_time[i] <- as.numeric(Sys.time() - moc_start, units = "secs")
 
   tb_start <- Sys.time()
-  tb_results[[i]] <- treebased_counterfactuals(explainer, obs,
-                                               times = explainer$times,
-                                               target_envelope = target_envelope_chf,
-                                               max_counterfactuals = 40,
-                                               paths_per_tree = 20,
-                                               verbose = FALSE)
+  tb_results[[i]] <- st_pt(explainer, obs,
+                           target_prediction_band = target_prediction_band_chf,
+                           max_counterfactuals = 40,
+                           paths_per_tree = 20,
+                           verbose = FALSE)
   tb_time[i] <- as.numeric(Sys.time() - tb_start, units = "secs")
 
   mu_original <- mean_time_to_survival(explainer, predictions = predict(explainer, obs))

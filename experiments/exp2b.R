@@ -5,6 +5,7 @@ devtools::load_all(".")
 
 set.seed(123)
 df <- survival::pbc
+nrow(df)
 df <- df[complete.cases(df),-1]
 nrow(df)
 colnames(df)

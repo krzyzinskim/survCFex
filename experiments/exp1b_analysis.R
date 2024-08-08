@@ -17,6 +17,18 @@ execution_time_df <- data.frame(
              rep("KOV", length(experiment6_results$kov_time)))
 )
 
+
+
+library(dplyr)
+
+execution_time_df %>%
+  group_by(method) %>%
+  summarise(mean_time = mean(time),
+            sd_time = sd(time),
+            min_time = min(time),
+            max_time = max(time))
+
+
 ggplot(execution_time_df, aes(x = method, y = time)) +
   geom_boxplot(staplewidth = 0.5,
                outlier.shape = 1,
@@ -28,8 +40,8 @@ ggplot(execution_time_df, aes(x = method, y = time)) +
   ylab("Execution time (s)") +
   theme_bw()
 
-ggsave("experiments/plots/exp6_execution_time.pdf", dpi=500,
-       width=4, height=4, units="in")
+ggsave("experiments/plots/exp1b_execution_time.pdf", dpi=500,
+       width=4.5, height=3, units="in")
 
 
 
@@ -62,6 +74,12 @@ all_ov <- rbind(moc_all_ov, kov_all_ov)
 
 all_ov <- reshape2::melt(all_ov, id.vars = c("method"))
 
+
+all_ov$variable <- factor(paste(all_ov$variable, "loss", sep = " "),
+                          levels = c("validity loss", "similarity loss", "sparsity loss", "plausibility loss"))
+
+
+
 ggplot(all_ov, aes(x = method, y = value)) +
   geom_boxplot(staplewidth = 0.5,
                outlier.shape = 1,
@@ -73,7 +91,7 @@ ggplot(all_ov, aes(x = method, y = value)) +
   facet_wrap(~variable, scales = "free_y", nrow = 1) +
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave("experiments/plots/exp6_objective_values.pdf", dpi=500,
+ggsave("experiments/plots/exp1b_objective_values.pdf", dpi=500,
        width=8, height=3.2, units="in")
 
 
@@ -87,7 +105,8 @@ clusters <- get_clusters(experiment6_results$dendrogram, k=4)[experiment6_result
 
 moc_n_nd <- sapply(experiment6_results$moc_results,
                    function(res){
-                     obj <- res$objective_values
+                     crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
+                     obj <- res$objective_values[select_population_indices(crowded_comparison_order, 10),]
                      sum(ecr::doNondominatedSorting(as.matrix(t(obj)))$ranks == 1)
                    })
 
@@ -101,7 +120,7 @@ kov_n_nd <- sapply(experiment6_results$kov_results,
                                                            data_range, NULL,
                                                            1, 5)
                      crowded_comparison_order <- get_crowded_comparison_order(raw_obj)
-                     raw_obj <- raw_obj[select_population_indices(crowded_comparison_order, 40),]
+                     raw_obj <- raw_obj[select_population_indices(crowded_comparison_order, 10),]
                      sum(ecr::doNondominatedSorting(as.matrix(t(raw_obj)))$ranks == 1)
                    })
 
@@ -124,7 +143,7 @@ p1 <- ggplot(nondominated_df, aes(x = method, y = n_nondominated)) +
                fill="darkorchid") +
   stat_summary(fun = mean, geom = "point", shape = 23, size = 2, fill = "violet") +
   xlab("Method") +
-  ylab("Number of non-dominatedcounterfactual examples") +
+  ylab("Number of non-dominated\ncounterfactual examples") +
   theme_bw()
 p1
 
@@ -141,8 +160,8 @@ p2
 
 library(ggpubr)
 ggarrange(p1, p2, ncol = 2, nrow = 1, widths = c(1, 2))
-ggsave("experiments/plots/exp6_nondomination.pdf", dpi=500,
-       width=10, height=4, units="in")
+ggsave("experiments/plots/exp1b_nondomination.pdf", dpi=500,
+       width=4.5, height=3, units="in")
 
 
 # valid_df
@@ -196,20 +215,32 @@ plot(explainer$data$x3, explainer$data$x4,
      ylim = range(explainer$data$x4),
      col = scales::alpha("black", 0.2), pch=16)
 
-points(experiment6_results$moc_results[[i]]$counterfactual_examples$x3[mask_ones],
-       experiment6_results$moc_results[[i]]$counterfactual_examples$x4[mask_ones],
+
+crowded_comparison_order <- get_crowded_comparison_order(experiment6_results$moc_results[[i]]$objective_values)
+sel_ces <- select_population_indices(crowded_comparison_order, 10)
+moc_results <- experiment6_results$moc_results[[i]]$counterfactual_examples[sel_ces,]
+
+
+res <- experiment6_results$kov_results[[i]]
+raw_obj <- calculate_objective_values(explainer$data, explainer$times, experiment6_results$weights,
+                                      res$original_observation, res$counterfactual_examples,
+                                      res$original_prediction, res$predictions,
+                                      NULL, experiment6_results$target_envelope_sf,
+                                      data_range, NULL,
+                                      1, 5)
+crowded_comparison_order <- get_crowded_comparison_order(raw_obj)
+kov_results <- res$counterfactual_examples[select_population_indices(crowded_comparison_order, 10),]
+
+
+
+points(moc_results$x3,
+       moc_results$x4,
        col="blue",
        pch=16)
 
-points(experiment6_results$moc_results[[i]]$counterfactual_examples$x3[!mask_ones],
-       experiment6_results$moc_results[[i]]$counterfactual_examples$x4[!mask_ones],
+points(kov_results[,3],
+       kov_results[,4],
        col="red",
-       pch=16)
-
-
-points(experiment6_results$kov_results[[i]]$counterfactual_examples[,3][mask_ones],
-       experiment6_results$kov_results[[i]]$counterfactual_examples[,4][mask_ones],
-       col="darkgreen",
        pch=16)
 
 points(experiment6_results$kov_results[[i]]$original_observation[3],
@@ -224,30 +255,33 @@ which_has_1 <- which(evaluation_sample$x1 == 1)
 which_has_0 <- which(evaluation_sample$x1 == 0)
 mask_ones <- evaluation_sample$x1 == 1
 
-moc_x1 <- lapply(experiment1_results$moc_results,
+moc_x1 <- lapply(experiment6_results$moc_results,
                  function(res){
-                   res$counterfactual_examples$x1
+                   crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
+                   sel_ces <- select_population_indices(crowded_comparison_order, 10)
+                   ces <- res$counterfactual_examples[sel_ces,]
+                   ces$x1
                  })
 
 
-tb_x1 <- lapply(experiment1_results$tb_results,
+tb_x1 <- lapply(experiment6_results$tb_results,
                 function(res){
                   crowded_comparison_order <- get_crowded_comparison_order(res$objective_values)
-                  sel_ces <- select_population_indices(crowded_comparison_order, 40)
+                  sel_ces <- select_population_indices(crowded_comparison_order, 10)
                   ces <- res$counterfactual_examples[sel_ces,]
                   ces$x1
                 })
 
-kov_x1 <- lapply(experiment1_results$kov_results,
+kov_x1 <- lapply(experiment6_results$kov_results,
                  function(res){
-                   raw_obj <- calculate_objective_values(explainer$data, explainer$times, experiment1_results$weights,
+                   raw_obj <- calculate_objective_values(explainer$data, explainer$times, experiment6_results$weights,
                                                          res$original_observation, res$counterfactual_examples,
                                                          res$original_prediction, res$predictions,
-                                                         NULL, experiment1_results$target_envelope_sf,
+                                                         NULL, experiment6_results$target_envelope_sf,
                                                          data_range, NULL,
                                                          1, 5)
                    crowded_comparison_order <- get_crowded_comparison_order(raw_obj)
-                   ces <- res$counterfactual_examples[select_population_indices(crowded_comparison_order, 40),]
+                   ces <- res$counterfactual_examples[select_population_indices(crowded_comparison_order, 10),]
                    ces[,1]
                  })
 
@@ -258,9 +292,9 @@ tb_ones <- sapply(tb_x1, function(x) sum(x == 1))
 kov_ones_real <- sapply(kov_x1, function(x) sum(x == 1))
 kov_ones <- sapply(kov_x1, function(x) sum(abs(x-1)<abs(x)))
 
-table(moc_ones == 40, mask_ones)
+table(moc_ones == 10, mask_ones)
 table(tb_ones == 40, mask_ones)
-table(kov_ones == 40, mask_ones)
+table(kov_ones == 10, mask_ones)
 
 
 # table(moc_ones == 40, mask_ones)
