@@ -4,7 +4,7 @@ Version: 0.1
 Authors@R: 
     c(person("Mateusz", "Krzyziński", email = "krzyzinskimateusz23@gmail.com", role = c("aut", "cre")),
     person("Przemyslaw", "Biecek", role = c("ths")))
-Description: The survCFex package offers counterfactual explanation methods for survival analysis. It includes SurvMOC, a model-agnostic approach, and ST-PT method, specifically designed for tree-based ensemble models. These methods generate plausible and actionable counterfactuals to explain predicted survival outcomes.
+Description: The survCFex package offers counterfactual explanation methods for survival analysis models' predictions. It includes SurvMOC and ST-PT methods, model-agnostic and model-specific techniques, respectively. Both these methods ensure the time-dependent explainability.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)

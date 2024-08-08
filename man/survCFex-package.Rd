@@ -6,7 +6,7 @@
 \alias{survCFex-package}
 \title{survCFex: Counterfactual Explanations for Survival Analysis Models}
 \description{
-The survCFex package offers counterfactual explanation methods for survival analysis. It includes SurvMOC, a model-agnostic approach, and ST-PT method, specifically designed for tree-based ensemble models. These methods generate plausible and actionable counterfactuals to explain predicted survival outcomes.
+The survCFex package offers counterfactual explanation methods for survival analysis models' predictions. It includes SurvMOC and ST-PT methods, model-agnostic and model-specific techniques, respectively. Both these methods ensure the time-dependent explainability.
 }
 \author{
 \strong{Maintainer}: Mateusz Krzyziński \email{krzyzinskimateusz23@gmail.com}
