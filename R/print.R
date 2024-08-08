@@ -1,5 +1,5 @@
 #' @export
-print.counterfactual_explanations <- function(x, ...){
+print.counterfactual_explanations <- function(x, ...) {
   cat("Counterfactual explanations\n")
   cat(paste("\n-> Type:", class(x)[2], "\n"))
   cat("\n-> Original observation:\n")

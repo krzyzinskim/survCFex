@@ -2,7 +2,7 @@
 % Please edit documentation in R/kovalev_method.R
 \name{kovalev_method}
 \alias{kovalev_method}
-\title{Kovalev method for counterfactual explanation}
+\title{Kovalev method}
 \usage{
 kovalev_method(
   explainer,
@@ -20,28 +20,30 @@ kovalev_method(
 )
 }
 \arguments{
-\item{explainer}{a survival explainer object}
+\item{explainer}{A \code{survex::survival_explainer} object - model preprocessed by the \code{survex::explain()} function.}
 
-\item{new_observation}{a new observation for which we want to find a counterfactual}
+\item{new_observation}{A data frame with a single row containing the observation for which counterfactuals are to be generated.}
 
-\item{r}{target difference between the mean time to survival of the counterfactual and the original observation}
+\item{r}{The target difference between the mean time to survival of the counterfactual and the original observation.}
 
-\item{num_iter}{number of iterations in PSO algorithm}
+\item{num_iter}{Number of iterations in the PSO algorithm.}
 
-\item{num_particles}{number of particles in PSO algorithm}
+\item{num_particles}{Number of particles in the PSO algorithm.}
 
-\item{verbose}{if integer, print loss every verbose iterations}
+\item{verbose}{Integer value indicating how often the loss should be printed.}
 
-\item{C}{penalty parameter for the loss function (used to enforce the counterfactuality)}
+\item{C}{Penalty parameter for the loss function (used to enforce the counterfactuality).}
 
-\item{w}{inertia weight in PSO algorithm}
+\item{w}{Inertia weight in PSO algorithm.}
 
-\item{c1}{cognitive parameter in PSO algorithm}
+\item{c1}{Cognitive parameter in PSO algorithm.}
 
-\item{c2}{social parameter in PSO algorithm}
+\item{c2}{Social parameter in PSO algorithm.}
 
-\item{seed}{seed for random number generation}
+\item{tol_iter}{Integer value indicating the number of iterations without progress after which the search should be stopped.}
+
+\item{seed}{An integer value to set the seed for reproducibility.}
 }
 \description{
-This function implements themethod for counterfactual explanations of survival models proposed by Kovalev et al.
+Kovalev method is a model-agnostic counterfactual explanation approach for survival models. It is based on the Particle Swarm Optimization algorithm.
 }

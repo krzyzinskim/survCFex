@@ -22,7 +22,7 @@ weights <- survival_weights(explainer, explainer$times, p=0, q=0)
 
 dendrogram <- get_hierarchical_clustering(explainer, weights)
 
-analyze_clustering(dendrogram, max_k = 6)
+analyze_clustering(explainer, dendrogram, max_k = 6)
 
 plot_prediction_bands(explainer, get_clusters(dendrogram, k=4),
                alpha = 0.5,

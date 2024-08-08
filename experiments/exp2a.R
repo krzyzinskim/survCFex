@@ -22,7 +22,7 @@ weights <- survival_weights(explainer, explainer$times, p=0, q=0)
 
 
 clustering <- get_hierarchical_clustering(explainer, weights)
-analyze_clustering(clustering)
+analyze_clustering(explainer, clustering)
 plot(dendrogram)
 
 
