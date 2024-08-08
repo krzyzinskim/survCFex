@@ -1,9 +1,10 @@
 Package: survCFex
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Counterfactual Explanations for Survival Analysis Models
+Version: 0.1
 Authors@R: 
-    person("Mateusz", "Krzyziński", , "krzyzinskimateusz23@gmail.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+    c(person("Mateusz", "Krzyziński", email = "krzyzinskimateusz23@gmail.com", role = c("aut", "cre")),
+    person("Przemyslaw", "Biecek", role = c("ths")))
+Description: The survCFex package offers counterfactual explanation methods for survival analysis. It includes SurvMOC, a model-agnostic approach, and ST-PT method, specifically designed for tree-based ensemble models. These methods generate plausible and actionable counterfactuals to explain predicted survival outcomes.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
